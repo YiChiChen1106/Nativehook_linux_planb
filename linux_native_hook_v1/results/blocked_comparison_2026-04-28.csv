@@ -1,0 +1,3 @@
+threads,size,duration,flush_threshold,blocked,sample_interval,filter_size,baseline_ops,with_hook_ops,overhead_pct,records,alloc,free,thread_name,flush,dropped,avg_batch
+1,32,1,20,0,1000,-1,17245574.00,4769641.00,72.3428,9540,4765,4764,11,477,0,20
+1,32,1,20,1,1000,-1,17245574.00,4160795.00,75.8733,8333,4162,4161,10,8333,0,1

@@ -1,40 +1,56 @@
 # native_hook Plan B project page
 
-This directory is a static site package prepared for a separate GitHub Pages project repository.
+This repository now contains both:
 
-## What is included
+- a static project page for GitHub Pages / GitLab Pages style display
+- the current Linux-side Plan B source tree, result CSVs, analysis scripts, and progress notes
+
+## Repository layout
 
 - `index.html`
+  - static landing page for project overview
 - `styles.css`
-- `assets/charts/planb_sweep_summary_ppt_clean.png`
-- `assets/charts/planb_blocked_summary_ppt_clean.png`
+  - static page styling
+- `assets/charts/`
+  - figures used by the project page
+- `linux_native_hook_v1/`
+  - current Plan B source tree
+- `analysis_scripts/`
+  - plotting and small benchmark helpers
+- `notes/`
+  - progress records, baseline notes, server plan, and flush/batching explanation
 - `.nojekyll`
+  - prevents GitHub Pages from applying Jekyll processing
 
-## Suggested repository name
+## What is intentionally included
 
-You can create a repository like:
+- runnable Linux-side Plan B code
+- benchmark / sweep shell scripts
+- result CSV files
+- summary figures for presentation and review
+- short markdown notes that explain design decisions and current status
 
-- `native-hook-planb`
+## What is intentionally excluded
 
-Then this page can usually be published at:
+- large raw runtime logs under `results/logs/`
+- local build output
+- temporary Office files
+- personal meeting drafts not needed for the public project repository
 
-- `https://<your-github-username>.github.io/native-hook-planb/`
+## Pages deployment
 
-## Deploy steps
+For GitHub project pages, the repository can be published from:
 
-1. Create a new GitHub repository for this project page.
-2. Copy all files in this directory into that repository root.
-3. Commit and push to `main`.
-4. In GitHub repository settings, enable Pages from:
-   - Branch: `main`
-   - Folder: `/ (root)`
-5. Wait for GitHub Pages to finish building.
+- Branch: `main`
+- Folder: `/ (root)`
+
+If Pages is enabled, the landing page should be the root `index.html`.
 
 ## Notes
 
-- This page is intentionally a static site with no framework dependency.
-- All asset paths are relative, so it is suitable for a project page under a repository subpath.
-- The content currently focuses on:
+- The static page is intentionally framework-free.
+- All asset paths are relative, so the project works under a repository subpath.
+- The current content focuses on:
   - Why Plan B exists
   - Current runnable chain
   - Difference from real native_hook

@@ -1,0 +1,285 @@
+#include "producer_hook/hook_writer.h"
+
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <sys/mman.h>
+#include <sys/prctl.h>
+#include <sched.h>
+#include <sys/syscall.h>
+#include <time.h>
+#include <unistd.h>
+
+#include "common/socket_fd.h"
+#include "common/unix_defs.h"
+#include "producer_hook/hook_guard.h"
+
+namespace linux_native_hook_v1 {
+
+namespace {
+
+timespec NowTs(clockid_t clock_id)
+{
+    timespec ts {};
+    clock_gettime(clock_id, &ts);
+    return ts;
+}
+
+uint32_t CurrentPid()
+{
+    return static_cast<uint32_t>(getpid());
+}
+
+uint32_t CurrentTid()
+{
+    return static_cast<uint32_t>(syscall(SYS_gettid));
+}
+
+const char* ResolveSocketPath()
+{
+    const char* path = std::getenv("LNHV1_SOCKET_PATH");
+    return (path != nullptr && path[0] != '\0') ? path : kDefaultSocketPath;
+}
+
+thread_local uint32_t g_thread_name_counter = 0;
+thread_local uint32_t g_sample_counter = 0;
+constexpr uint32_t kThreadNameRefreshInterval = 1000;
+
+bool PassesFilter(int32_t filter_size, size_t size)
+{
+    return filter_size < 0 || size >= static_cast<size_t>(filter_size);
+}
+
+bool ShouldSample(uint32_t sample_interval)
+{
+    if (sample_interval <= 1) {
+        return true;
+    }
+    const bool keep = (g_sample_counter % sample_interval) == 0;
+    g_sample_counter = (g_sample_counter == UINT32_MAX) ? 0 : (g_sample_counter + 1);
+    return keep;
+}
+
+}  // namespace
+
+HookWriter::HookWriter()
+    : flush_threshold_(kDefaultFlushThreshold)
+{
+}
+
+HookWriter& HookWriter::Instance()
+{
+    // Intentionally leaked. Preload libraries are fragile during process teardown,
+    // and keeping this singleton alive avoids destructor-order crashes.
+    static HookWriter* writer = new HookWriter();
+    return *writer;
+}
+
+bool HookWriter::EnsureConnectedLocked()
+{
+    if (header_ != nullptr) {
+        return true;
+    }
+
+    if (socket_path_ == nullptr) {
+        socket_path_ = ResolveSocketPath();
+    }
+
+    control_fd_ = ConnectUnixSocket(socket_path_);
+    if (control_fd_ < 0) {
+        return false;
+    }
+
+    const int32_t pid = static_cast<int32_t>(CurrentPid());
+    if (!SendBytes(control_fd_, &pid, sizeof(pid))) {
+        return false;
+    }
+
+    ControlConfig config {};
+    if (!RecvBytes(control_fd_, &config, sizeof(config))) {
+        return false;
+    }
+    if (!RecvFd(control_fd_, &shm_fd_)) {
+        return false;
+    }
+    if (!RecvFd(control_fd_, &event_fd_)) {
+        return false;
+    }
+
+    mapped_size_ = ShmBytesForCapacity(config.ring_capacity);
+    mapping_ = mmap(nullptr, mapped_size_, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, 0);
+    if (mapping_ == MAP_FAILED) {
+        mapping_ = nullptr;
+        return false;
+    }
+
+    header_ = GetShmHeader(mapping_);
+    records_ = GetShmRecords(mapping_);
+    flush_threshold_ = config.flush_threshold == 0 ? kDefaultFlushThreshold : config.flush_threshold;
+    sample_interval_ = config.sample_interval == 0 ? kDefaultSampleInterval : config.sample_interval;
+    clock_id_ = config.clock_id;
+    filter_size_ = config.filter_size;
+    is_blocked_ = config.is_blocked != 0;
+    return header_->magic == kShmMagic && header_->capacity == config.ring_capacity;
+}
+
+bool HookWriter::ShouldRecordAllocLocked(size_t size)
+{
+    if (!PassesFilter(filter_size_, size)) {
+        return false;
+    }
+    return ShouldSample(sample_interval_);
+}
+
+bool HookWriter::ConsumeTrackedAllocLocked(uint64_t addr)
+{
+    const auto it = tracked_allocations_.find(addr);
+    if (it == tracked_allocations_.end()) {
+        return false;
+    }
+    tracked_allocations_.erase(it);
+    return true;
+}
+
+bool HookWriter::WriteRecordLocked(const HookRecord& record)
+{
+    if (header_ == nullptr || records_ == nullptr) {
+        return false;
+    }
+
+    const uint32_t capacity = header_->capacity;
+    const uint32_t write_index = AtomicLoadU32(&header_->write_index);
+    const uint32_t read_index = AtomicLoadU32(&header_->read_index);
+    const uint32_t next_write = (write_index + 1) % capacity;
+    if (next_write == read_index) {
+        AtomicFetchAddU32(&header_->dropped, 1);
+        return false;
+    }
+
+    records_[write_index] = record;
+    AtomicStoreU32(&header_->write_index, next_write);
+    ++pending_count_;
+    if (is_blocked_) {
+        NotifyLocked();
+        if (pending_count_ == 0) {
+            WaitUntilDrainedLocked();
+        }
+    } else if (pending_count_ >= flush_threshold_) {
+        NotifyLocked();
+    }
+    return true;
+}
+
+static void FillThreadNameRecord(HookRecord* record, int32_t clock_id)
+{
+    if (record == nullptr) {
+        return;
+    }
+    record->type = static_cast<uint16_t>(HookEventType::kThreadName);
+    record->pid = CurrentPid();
+    record->tid = CurrentTid();
+    record->ts = NowTs(clock_id);
+    prctl(PR_GET_NAME, record->name);
+}
+
+void HookWriter::MaybeWriteThreadNameLocked()
+{
+    if (g_thread_name_counter == 0) {
+        HookRecord name_record {};
+        FillThreadNameRecord(&name_record, clock_id_);
+        WriteRecordLocked(name_record);
+    }
+    g_thread_name_counter = (g_thread_name_counter == kThreadNameRefreshInterval) ? 0 : (g_thread_name_counter + 1);
+}
+
+void HookWriter::WaitUntilDrainedLocked() const
+{
+    if (header_ == nullptr) {
+        return;
+    }
+
+    while (AtomicLoadU32(&header_->read_index) != AtomicLoadU32(&header_->write_index)) {
+        sched_yield();
+    }
+}
+
+void HookWriter::NotifyLocked()
+{
+    if (event_fd_ < 0 || pending_count_ == 0) {
+        return;
+    }
+    const uint64_t one = 1;
+    if (write(event_fd_, &one, sizeof(one)) == sizeof(one)) {
+        pending_count_ = 0;
+    }
+}
+
+bool HookWriter::RecordAlloc(void* ptr, size_t size)
+{
+    if (ptr == nullptr) {
+        return false;
+    }
+
+    pthread_mutex_lock(&mutex_);
+    if (!EnsureConnectedLocked()) {
+        pthread_mutex_unlock(&mutex_);
+        return false;
+    }
+    if (!ShouldRecordAllocLocked(size)) {
+        pthread_mutex_unlock(&mutex_);
+        return false;
+    }
+
+    MaybeWriteThreadNameLocked();
+
+    HookRecord record {};
+    record.type = static_cast<uint16_t>(HookEventType::kMalloc);
+    record.pid = CurrentPid();
+    record.tid = CurrentTid();
+    record.ts = NowTs(clock_id_);
+    record.addr = reinterpret_cast<uint64_t>(ptr);
+    record.size = static_cast<uint64_t>(size);
+    const bool ret = WriteRecordLocked(record);
+    if (ret) {
+        tracked_allocations_.insert(record.addr);
+    }
+    pthread_mutex_unlock(&mutex_);
+    return ret;
+}
+
+bool HookWriter::RecordFree(void* ptr)
+{
+    if (ptr == nullptr) {
+        return false;
+    }
+
+    pthread_mutex_lock(&mutex_);
+    if (header_ == nullptr || !ConsumeTrackedAllocLocked(reinterpret_cast<uint64_t>(ptr))) {
+        pthread_mutex_unlock(&mutex_);
+        return false;
+    }
+
+    MaybeWriteThreadNameLocked();
+
+    HookRecord record {};
+    record.type = static_cast<uint16_t>(HookEventType::kFree);
+    record.pid = CurrentPid();
+    record.tid = CurrentTid();
+    record.ts = NowTs(clock_id_);
+    record.addr = reinterpret_cast<uint64_t>(ptr);
+    record.size = 0;
+    const bool ret = WriteRecordLocked(record);
+    pthread_mutex_unlock(&mutex_);
+    return ret;
+}
+
+void HookWriter::Flush()
+{
+    pthread_mutex_lock(&mutex_);
+    NotifyLocked();
+    pthread_mutex_unlock(&mutex_);
+}
+
+}  // namespace linux_native_hook_v1

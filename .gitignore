@@ -1,0 +1,18 @@
+# Build outputs
+build/
+out/
+dist/
+
+# Local runtime outputs
+results/logs/
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Temporary Office files
+~$*.pptx
+~$*.docx
+~$*.xlsx
