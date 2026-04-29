@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>native_hook Plan B</title>
+  <meta name="description" content="Server-side Plan B for native_hook experiment: pipeline, current status, key results, and next steps.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">native_hook / Plan B</p>
+        <h1>Server-side experimental page for the Linux-side Plan B pipeline</h1>
+        <p class="hero-text">
+          This page summarizes why Plan B was built, what parts of the native_hook-style
+          pipeline are already runnable on the server, what differs from the real
+          OpenHarmony native_hook, and what the latest sweep results suggest about the
+          remaining overhead.
+        </p>
+        <div class="hero-tags">
+          <span>Runnable pipeline</span>
+          <span>Shared memory + eventfd</span>
+          <span>sample / filter / blocked</span>
+          <span>producer hot-path focus</span>
+        </div>
+      </div>
+      <aside class="hero-panel">
+        <p class="panel-kicker">Current take</p>
+        <p class="panel-big">Plan B is already usable as a measurement framework, not just a placeholder.</p>
+        <ul class="panel-list">
+          <li>Core chain runs end to end</li>
+          <li>sample_interval and filter_size are active</li>
+          <li>blocked vs non-blocked is measurable</li>
+          <li>Current evidence points toward producer-side hot-path cost</li>
+        </ul>
+      </aside>
+    </header>
+
+    <main>
+      <section class="section two-col">
+        <div class="section-heading">
+          <p class="section-eyebrow">Why this page exists</p>
+          <h2>Why Plan B exists</h2>
+        </div>
+        <div class="grid cards-2">
+          <article class="card">
+            <h3>Current motivation</h3>
+            <p>
+              Real OpenHarmony native_hook is not fully runnable in the current server
+              environment, especially when the experiment needs the real hook entry,
+              tighter dependency closure, and device-side runtime conditions.
+            </p>
+          </article>
+          <article class="card">
+            <h3>What Plan B tries to preserve</h3>
+            <p>
+              The goal is not to fake performance numbers. The goal is to preserve the
+              performance-relevant middle path: producer behavior, control-plane handshake,
+              shared-memory transport, flush logic, and backend drain.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="section-eyebrow">Pipeline</p>
+          <h2>Current Plan B chain</h2>
+          <p class="section-lead">
+            This is the Linux-side Plan B chain already running on the server. It is not
+            the full real native_hook, but it is enough to run parameter sweeps and study
+            where overhead is still concentrated.
+          </p>
+        </div>
+
+        <div class="pipeline">
+          <div class="pipeline-step warm">
+            <span class="step-index">01</span>
+            <h3>Hook entry</h3>
+            <p>LD_PRELOAD intercepts <code>malloc</code>, <code>free</code>, <code>calloc</code>, and <code>realloc</code>.</p>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step warm">
+            <span class="step-index">02</span>
+            <h3>Producer path</h3>
+            <p>Guard logic, metadata capture, sample / filter decision, and record build.</p>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step neutral">
+            <span class="step-index">03</span>
+            <h3>Control plane</h3>
+            <p>Unix socket handshake, PID exchange, config delivery, and FD passing.</p>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step cool">
+            <span class="step-index">04</span>
+            <h3>Data plane</h3>
+            <p>Shared-memory ring buffer plus <code>eventfd</code> notification and flush batching.</p>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step cool">
+            <span class="step-index">05</span>
+            <h3>Consumer side</h3>
+            <p>Batch drain, statistics, CSV logging, and result analysis.</p>
+          </div>
+        </div>
+
+        <div class="grid cards-3">
+          <article class="card compact">
+            <h3>Flush rule</h3>
+            <p>Default threshold aligned to <code>20</code>, matching the upstream-style batching idea.</p>
+          </article>
+          <article class="card compact">
+            <h3>Key transport split</h3>
+            <p>Socket is mainly for setup; shared memory carries high-frequency records.</p>
+          </article>
+          <article class="card compact">
+            <h3>Hot-path goal</h3>
+            <p>Keep producer-side work light enough that later experiments can isolate the true bottleneck layer.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="section-eyebrow">Reality check</p>
+          <h2>Difference from the real native_hook</h2>
+        </div>
+        <div class="compare-grid">
+          <article class="compare-card">
+            <h3>Already close</h3>
+            <ul>
+              <li>Control plane and data plane are separated</li>
+              <li>PID-first handshake is in place</li>
+              <li>Socket-based FD passing is in place</li>
+              <li>Shared-memory ring buffer is in place</li>
+              <li>eventfd-style wakeup and batching behavior are in place</li>
+              <li>flush threshold is aligned to 20</li>
+            </ul>
+          </article>
+          <article class="compare-card alt">
+            <h3>Still different</h3>
+            <ul>
+              <li>Entry is still Linux LD_PRELOAD, not the real OpenHarmony hook entry</li>
+              <li>sample_interval / filter_size / blocked are simplified versions</li>
+              <li>stack capture is not implemented yet</li>
+              <li>mmap / munmap path is not implemented yet</li>
+              <li>memtrace / restrace / tag-related parts are not implemented yet</li>
+              <li>This is a Linux approximation framework, not the full upstream native_hook</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="section-eyebrow">This week</p>
+          <h2>What was pushed forward this week</h2>
+        </div>
+        <div class="timeline">
+          <article class="timeline-item">
+            <span class="timeline-index">A</span>
+            <div>
+              <h3>Made the core chain runnable</h3>
+              <p>Consumer, producer, Unix socket, FD passing, shared memory, and eventfd path all run end to end on server.</p>
+            </div>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-index">B</span>
+            <div>
+              <h3>Activated real knobs</h3>
+              <p><code>sample_interval</code> and <code>filter_size</code> were turned from placeholder fields into actual producer-side behavior.</p>
+            </div>
+          </article>
+          <article class="timeline-item">
+            <span class="timeline-index">C</span>
+            <div>
+              <h3>Added blocked contrast</h3>
+              <p><code>blocked=0/1</code> is now a measurable branch, so Plan B can compare batch-friendly and more synchronous paths directly.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="section-eyebrow">Current status</p>
+          <h2>Checklist</h2>
+        </div>
+        <div class="status-grid">
+          <article class="status-card done">
+            <h3>Already in place</h3>
+            <ul>
+              <li>Runnable core chain</li>
+              <li>Shared memory + eventfd transport</li>
+              <li>sample_interval simplified logic</li>
+              <li>filter_size simplified logic</li>
+              <li>blocked simplified branch</li>
+              <li>CSV sweep output</li>
+            </ul>
+          </article>
+          <article class="status-card todo">
+            <h3>Still pending</h3>
+            <ul>
+              <li>Real native hook entry</li>
+              <li>stack capture / unwind</li>
+              <li>mmap / munmap path</li>
+              <li>memtrace / restrace / tag</li>
+              <li>Full upstream blocked semantics</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section charts">
+        <div class="section-heading">
+          <p class="section-eyebrow">Results</p>
+          <h2>What the latest sweep results suggest</h2>
+          <p class="section-lead">
+            The main takeaway is not just that sample and filter reduce record traffic.
+            The more important takeaway is that throughput recovery plateaus early, which
+            suggests the remaining major cost has already moved closer to the producer
+            hot path.
+          </p>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-copy">
+            <h3>Main sweep summary</h3>
+            <p>
+              Increasing <code>sample_interval</code> or raising <code>filter_size</code>
+              can drastically reduce records. But after a certain point, throughput stops
+              improving proportionally, which suggests the remaining cost is not only in
+              downstream transport or backend drain.
+            </p>
+          </div>
+          <img src="assets/charts/planb_sweep_summary_ppt_clean.png" alt="Plan B sweep summary chart">
+        </div>
+
+        <div class="chart-card reverse">
+          <div class="chart-copy">
+            <h3>Blocked interaction summary</h3>
+            <p>
+              When record density is still high, <code>blocked=1</code> is much heavier
+              than <code>blocked=0</code>. As sample/filter suppress record traffic more
+              aggressively, the two curves converge, which supports the idea that the
+              major blocked penalty belongs to the hot record-heavy stage.
+            </p>
+          </div>
+          <img src="assets/charts/planb_blocked_summary_ppt_clean.png" alt="Plan B blocked interaction summary chart">
+        </div>
+
+        <div class="grid cards-3">
+          <article class="card compact emphasis">
+            <h3>Representative point</h3>
+            <p><code>blocked=0, sample=100000</code> reached about <strong>4.81M ops</strong> with batch behavior near <code>20</code>.</p>
+          </article>
+          <article class="card compact emphasis">
+            <h3>Representative point</h3>
+            <p><code>blocked=1, sample=1</code> dropped to about <strong>88K ops</strong> with <code>avg_batch=1</code>.</p>
+          </article>
+          <article class="card compact emphasis">
+            <h3>Interpretation</h3>
+            <p>Current evidence points more strongly to producer-side hot-path cost than to shared-memory transport alone.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="section-eyebrow">Next step</p>
+          <h2>What comes next</h2>
+        </div>
+        <div class="next-grid">
+          <article class="card">
+            <h3>Immediate priority</h3>
+            <p>
+              Run producer hot-path ablation instead of adding more features immediately.
+              The goal is to isolate which layer still dominates the remaining overhead.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Suggested ablation order</h3>
+            <ol>
+              <li>Hook entry only</li>
+              <li>Add reentry guard</li>
+              <li>Add mutex</li>
+              <li>Add allocation tracking</li>
+              <li>Restore record write + notify path</li>
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="section-eyebrow">Artifacts</p>
+          <h2>Page package contents</h2>
+        </div>
+        <div class="grid cards-2">
+          <article class="card">
+            <h3>Included assets</h3>
+            <ul>
+              <li>Main sweep figure</li>
+              <li>Blocked interaction figure</li>
+              <li>Single-page summary site</li>
+              <li>README deployment instructions</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Deployment target</h3>
+            <p>
+              This directory is prepared for a separate GitHub Pages project repository.
+              Once a repo is created, the site can be pushed as a plain static page.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
