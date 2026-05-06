@@ -85,6 +85,7 @@ target_link_libraries(perf_test_data_linux
 )
 
 add_library(hook_preload SHARED
+    producer_hook/ablation_config.cpp
     producer_hook/hook_preload.cpp
     producer_hook/hook_guard.cpp
     producer_hook/hook_writer.cpp

@@ -14,6 +14,7 @@
 
 #include "common/socket_fd.h"
 #include "common/unix_defs.h"
+#include "producer_hook/ablation_config.h"
 #include "producer_hook/hook_guard.h"
 
 namespace linux_native_hook_v1 {
@@ -143,7 +144,7 @@ bool HookWriter::ConsumeTrackedAllocLocked(uint64_t addr)
     return true;
 }
 
-bool HookWriter::WriteRecordLocked(const HookRecord& record)
+bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain)
 {
     if (header_ == nullptr || records_ == nullptr) {
         return false;
@@ -161,6 +162,14 @@ bool HookWriter::WriteRecordLocked(const HookRecord& record)
     records_[write_index] = record;
     AtomicStoreU32(&header_->write_index, next_write);
     ++pending_count_;
+    if (self_drain) {
+        AtomicStoreU32(&header_->read_index, next_write);
+        pending_count_ = 0;
+        return true;
+    }
+    if (!allow_notify) {
+        return true;
+    }
     if (is_blocked_) {
         NotifyLocked();
         if (pending_count_ == 0) {
@@ -184,12 +193,15 @@ static void FillThreadNameRecord(HookRecord* record, int32_t clock_id)
     prctl(PR_GET_NAME, record->name);
 }
 
-void HookWriter::MaybeWriteThreadNameLocked()
+void HookWriter::MaybeWriteThreadNameLocked(int ablation_stage)
 {
     if (g_thread_name_counter == 0) {
         HookRecord name_record {};
         FillThreadNameRecord(&name_record, clock_id_);
-        WriteRecordLocked(name_record);
+        WriteRecordLocked(
+            name_record,
+            ablation_stage >= kAblationStageNotify,
+            ablation_stage == kAblationStageRecordWrite);
     }
     g_thread_name_counter = (g_thread_name_counter == kThreadNameRefreshInterval) ? 0 : (g_thread_name_counter + 1);
 }
@@ -222,7 +234,20 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
         return false;
     }
 
+    const int ablation_stage = GetAblationStage();
     pthread_mutex_lock(&mutex_);
+    if (ablation_stage <= kAblationStageMutex) {
+        pthread_mutex_unlock(&mutex_);
+        return true;
+    }
+    if (ablation_stage == kAblationStageTracking) {
+        if (ShouldRecordAllocLocked(size)) {
+            tracked_allocations_.insert(reinterpret_cast<uint64_t>(ptr));
+        }
+        pthread_mutex_unlock(&mutex_);
+        return true;
+    }
+
     if (!EnsureConnectedLocked()) {
         pthread_mutex_unlock(&mutex_);
         return false;
@@ -232,7 +257,7 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
         return false;
     }
 
-    MaybeWriteThreadNameLocked();
+    MaybeWriteThreadNameLocked(ablation_stage);
 
     HookRecord record {};
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
@@ -241,7 +266,10 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
     record.ts = NowTs(clock_id_);
     record.addr = reinterpret_cast<uint64_t>(ptr);
     record.size = static_cast<uint64_t>(size);
-    const bool ret = WriteRecordLocked(record);
+    const bool ret = WriteRecordLocked(
+        record,
+        ablation_stage >= kAblationStageNotify,
+        ablation_stage == kAblationStageRecordWrite);
     if (ret) {
         tracked_allocations_.insert(record.addr);
     }
@@ -255,13 +283,24 @@ bool HookWriter::RecordFree(void* ptr)
         return false;
     }
 
+    const int ablation_stage = GetAblationStage();
     pthread_mutex_lock(&mutex_);
+    if (ablation_stage <= kAblationStageMutex) {
+        pthread_mutex_unlock(&mutex_);
+        return true;
+    }
+    if (ablation_stage == kAblationStageTracking) {
+        const bool ret = ConsumeTrackedAllocLocked(reinterpret_cast<uint64_t>(ptr));
+        pthread_mutex_unlock(&mutex_);
+        return ret;
+    }
+
     if (header_ == nullptr || !ConsumeTrackedAllocLocked(reinterpret_cast<uint64_t>(ptr))) {
         pthread_mutex_unlock(&mutex_);
         return false;
     }
 
-    MaybeWriteThreadNameLocked();
+    MaybeWriteThreadNameLocked(ablation_stage);
 
     HookRecord record {};
     record.type = static_cast<uint16_t>(HookEventType::kFree);
@@ -270,13 +309,19 @@ bool HookWriter::RecordFree(void* ptr)
     record.ts = NowTs(clock_id_);
     record.addr = reinterpret_cast<uint64_t>(ptr);
     record.size = 0;
-    const bool ret = WriteRecordLocked(record);
+    const bool ret = WriteRecordLocked(
+        record,
+        ablation_stage >= kAblationStageNotify,
+        ablation_stage == kAblationStageRecordWrite);
     pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
 void HookWriter::Flush()
 {
+    if (GetAblationStage() < kAblationStageNotify) {
+        return;
+    }
     pthread_mutex_lock(&mutex_);
     NotifyLocked();
     pthread_mutex_unlock(&mutex_);

@@ -27,9 +27,9 @@ private:
     bool EnsureConnectedLocked();
     bool ShouldRecordAllocLocked(size_t size);
     bool ConsumeTrackedAllocLocked(uint64_t addr);
-    void MaybeWriteThreadNameLocked();
+    void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
-    bool WriteRecordLocked(const HookRecord& record);
+    bool WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain);
     void NotifyLocked();
 
     pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;

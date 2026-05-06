@@ -1,0 +1,13 @@
+stage,stage_name,threads,size,duration,flush_threshold,sample_interval,filter_size,blocked,baseline_ops,with_hook_ops,overhead_pct,records,alloc,free,thread_name,flush,dropped,avg_batch,consumer_log
+1,hook_entry,1,32,5,20,1,-1,0,17257620.60,14906968.80,13.6209,0,0,0,0,0,0,0,
+2,guard,1,32,5,20,1,-1,0,17257620.60,10139213.80,41.2479,0,0,0,0,0,0,0,
+3,mutex,1,32,5,20,1,-1,0,17257620.60,6896245.20,60.0394,0,0,0,0,0,0,0,
+4,tracking,1,32,5,20,1,-1,0,17257620.60,1805079.60,89.5404,0,0,0,0,0,0,0,
+5,record_write,1,32,5,20,1,-1,0,17257620.60,342806.80,98.0136,0,0,0,0,0,0,0,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/ablation_stage5_record_write_t1_s32_d5.consumer.log
+6,notify,1,32,5,20,1,-1,0,17257620.60,305848.80,98.2277,3061545,1529246,1529242,3057,153049,0,20.0037,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/ablation_stage6_notify_t1_s32_d5.consumer.log
+1,hook_entry,4,32,5,20,1,-1,0,12886592.40,12934808.40,-0.3742,0,0,0,0,0,0,0,
+2,guard,4,32,5,20,1,-1,0,12886592.40,10593342.60,17.7956,0,0,0,0,0,0,0,
+3,mutex,4,32,5,20,1,-1,0,12886592.40,2750413.60,78.6568,0,0,0,0,0,0,0,
+4,tracking,4,32,5,20,1,-1,0,12886592.40,472621.20,96.3325,0,0,0,0,0,0,0,
+5,record_write,4,32,5,20,1,-1,0,12886592.40,78295.40,99.3924,0,0,0,0,0,0,0,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/ablation_stage5_record_write_t4_s32_d5.consumer.log
+6,notify,4,32,5,20,1,-1,0,12886592.40,72971.00,99.4337,730440,364859,364849,732,36522,0,20,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/ablation_stage6_notify_t4_s32_d5.consumer.log
