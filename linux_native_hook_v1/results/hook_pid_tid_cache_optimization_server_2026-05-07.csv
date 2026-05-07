@@ -1,0 +1,13 @@
+stage,stage_name,pid_tid_cache,threads,size,duration,flush_threshold,sample_interval,filter_size,blocked,baseline_ops,with_hook_ops,overhead_pct,records,alloc,free,thread_name,flush,dropped,avg_batch,consumer_log
+0,baseline,0,1,32,5,20,1,-1,0,17146661.80,17146661.80,0.0000,0,0,0,0,0,0,0,
+4,tracking,0,1,32,5,20,1,-1,0,17146661.80,1694094.80,90.1200,0,0,0,0,0,0,0,
+5,record_write,0,1,32,5,20,1,-1,0,17146661.80,338408.20,98.0264,0,0,0,0,0,0,0,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage5_record_write_cache0_t1_s32_d5.consumer.log
+5,record_write,1,1,32,5,20,1,-1,0,17146661.80,1333016.20,92.2258,0,0,0,0,0,0,0,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage5_record_write_cache1_t1_s32_d5.consumer.log
+6,notify,0,1,32,5,20,1,-1,0,17146661.80,303983.20,98.2272,3042865,1519916,1519911,3038,152113,0,20.004,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage6_notify_cache0_t1_s32_d5.consumer.log
+6,notify,1,1,32,5,20,1,-1,0,17146661.80,1087848.00,93.6556,10889344,5439240,5439235,10869,543705,0,20.028,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage6_notify_cache1_t1_s32_d5.consumer.log
+0,baseline,0,4,32,5,20,1,-1,0,13625336.80,13625336.80,0.0000,0,0,0,0,0,0,0,
+4,tracking,0,4,32,5,20,1,-1,0,13625336.80,479113.00,96.4837,0,0,0,0,0,0,0,
+5,record_write,0,4,32,5,20,1,-1,0,13625336.80,85471.20,99.3727,0,0,0,0,0,0,0,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage5_record_write_cache0_t4_s32_d5.consumer.log
+5,record_write,1,4,32,5,20,1,-1,0,13625336.80,305959.20,97.7545,0,0,0,0,0,0,0,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage5_record_write_cache1_t4_s32_d5.consumer.log
+6,notify,0,4,32,5,20,1,-1,0,13625336.80,73383.40,99.4614,734581,366927,366917,737,36729,0,20,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage6_notify_cache0_t4_s32_d5.consumer.log
+6,notify,1,4,32,5,20,1,-1,0,13625336.80,235121.60,98.2744,2353582,1175618,1175612,2352,117663,0,20.0027,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/pid_tid_cache_stage6_notify_cache1_t4_s32_d5.consumer.log

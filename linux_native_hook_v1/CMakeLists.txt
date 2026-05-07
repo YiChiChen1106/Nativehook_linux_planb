@@ -84,6 +84,35 @@ target_link_libraries(perf_test_data_linux
         Threads::Threads
 )
 
+add_executable(ablation_config_test
+    tests/ablation_config_test.cpp
+    producer_hook/ablation_config.cpp
+)
+
+target_include_directories(ablation_config_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_compile_options(ablation_config_test
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
+enable_testing()
+add_test(NAME ablation_config_pid_tid_cache_default COMMAND ablation_config_test 0)
+add_test(NAME ablation_config_pid_tid_cache_disabled COMMAND ablation_config_test 0)
+set_tests_properties(ablation_config_pid_tid_cache_disabled PROPERTIES
+    ENVIRONMENT "LNHV1_PID_TID_CACHE=0")
+add_test(NAME ablation_config_pid_tid_cache_enabled COMMAND ablation_config_test 1)
+set_tests_properties(ablation_config_pid_tid_cache_enabled PROPERTIES
+    ENVIRONMENT "LNHV1_PID_TID_CACHE=1")
+add_test(NAME ablation_config_pid_tid_cache_invalid COMMAND ablation_config_test 0)
+set_tests_properties(ablation_config_pid_tid_cache_invalid PROPERTIES
+    ENVIRONMENT "LNHV1_PID_TID_CACHE=invalid")
+
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp
     producer_hook/hook_preload.cpp

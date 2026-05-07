@@ -10,6 +10,8 @@ constexpr int kUnsetAblationStage = 0;
 std::atomic<int> g_cached_ablation_stage {kUnsetAblationStage};
 constexpr int kUnsetSubAblationStage = -1;
 std::atomic<int> g_cached_sub_ablation_stage {kUnsetSubAblationStage};
+constexpr int kUnsetPidTidCacheEnabled = -1;
+std::atomic<int> g_cached_pid_tid_cache_enabled {kUnsetPidTidCacheEnabled};
 
 int ParseAblationStageFromEnv()
 {
@@ -45,6 +47,22 @@ int ParseSubAblationStageFromEnv()
     return static_cast<int>(value);
 }
 
+bool ParsePidTidCacheEnabledFromEnv()
+{
+    const char* text = std::getenv("LNHV1_PID_TID_CACHE");
+    if (text == nullptr || text[0] == '\0') {
+        return false;
+    }
+
+    char* end_ptr = nullptr;
+    const long value = std::strtol(text, &end_ptr, 10);
+    if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0') {
+        return false;
+    }
+
+    return value == 1;
+}
+
 }  // namespace
 
 int GetAblationStage()
@@ -73,6 +91,20 @@ int GetSubAblationStage()
     g_cached_sub_ablation_stage.compare_exchange_strong(
         expected, parsed_stage, std::memory_order_release, std::memory_order_relaxed);
     return g_cached_sub_ablation_stage.load(std::memory_order_acquire);
+}
+
+bool GetPidTidCacheEnabled()
+{
+    int enabled = g_cached_pid_tid_cache_enabled.load(std::memory_order_acquire);
+    if (enabled != kUnsetPidTidCacheEnabled) {
+        return enabled != 0;
+    }
+
+    const int parsed_enabled = ParsePidTidCacheEnabledFromEnv() ? 1 : 0;
+    int expected = kUnsetPidTidCacheEnabled;
+    g_cached_pid_tid_cache_enabled.compare_exchange_strong(
+        expected, parsed_enabled, std::memory_order_release, std::memory_order_relaxed);
+    return g_cached_pid_tid_cache_enabled.load(std::memory_order_acquire) != 0;
 }
 
 }  // namespace linux_native_hook_v1

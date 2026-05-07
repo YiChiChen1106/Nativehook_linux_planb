@@ -32,5 +32,6 @@ constexpr int kMaxSubAblationStage = kRecordWriteSubStageMetadataCachedPidThread
 
 int GetAblationStage();
 int GetSubAblationStage();
+bool GetPidTidCacheEnabled();
 
 }  // namespace linux_native_hook_v1

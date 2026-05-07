@@ -1,5 +1,6 @@
 #include "producer_hook/hook_writer.h"
 
+#include <atomic>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -47,6 +48,8 @@ const char* ResolveSocketPath()
 thread_local uint32_t g_thread_name_counter = 0;
 thread_local uint32_t g_sample_counter = 0;
 thread_local uint32_t g_cached_tid = 0;
+std::atomic<uint32_t> g_cached_pid {0};
+pthread_once_t g_pid_tid_cache_atfork_once = PTHREAD_ONCE_INIT;
 constexpr uint32_t kThreadNameRefreshInterval = 1000;
 
 bool PassesFilter(int32_t filter_size, size_t size)
@@ -98,23 +101,55 @@ bool IncludesRingWritePath(int sub_ablation_stage)
         sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain;
 }
 
+void ResetPidTidCacheInChild()
+{
+    g_cached_pid.store(0, std::memory_order_release);
+    g_cached_tid = 0;
+}
+
+void RegisterPidTidCacheAtFork()
+{
+    pthread_atfork(nullptr, nullptr, ResetPidTidCacheInChild);
+}
+
 uint32_t CachedPid()
 {
-    static const uint32_t pid = CurrentPid();
-    return pid;
+    pthread_once(&g_pid_tid_cache_atfork_once, RegisterPidTidCacheAtFork);
+
+    uint32_t pid = g_cached_pid.load(std::memory_order_acquire);
+    if (pid != 0) {
+        return pid;
+    }
+
+    pid = CurrentPid();
+    uint32_t expected = 0;
+    g_cached_pid.compare_exchange_strong(expected, pid, std::memory_order_release, std::memory_order_relaxed);
+    return g_cached_pid.load(std::memory_order_acquire);
 }
 
 uint32_t ThreadLocalTid()
 {
+    pthread_once(&g_pid_tid_cache_atfork_once, RegisterPidTidCacheAtFork);
+
     if (g_cached_tid == 0) {
         g_cached_tid = CurrentTid();
     }
     return g_cached_tid;
 }
 
+uint32_t MetadataPid(bool use_cache)
+{
+    return use_cache ? CachedPid() : CurrentPid();
+}
+
+uint32_t MetadataTid(bool use_cache)
+{
+    return use_cache ? ThreadLocalTid() : CurrentTid();
+}
+
 }  // namespace
 
-static void FillThreadNameRecord(HookRecord* record, int32_t clock_id);
+static void FillThreadNameRecord(HookRecord* record, int32_t clock_id, bool use_pid_tid_cache);
 
 HookWriter::HookWriter()
     : flush_threshold_(kDefaultFlushThreshold)
@@ -299,7 +334,7 @@ void HookWriter::MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage)
 
     if (g_thread_name_counter == 0) {
         HookRecord name_record {};
-        FillThreadNameRecord(&name_record, clock_id_);
+        FillThreadNameRecord(&name_record, clock_id_, false);
         WriteRecordSubAblationLocked(name_record, sub_ablation_stage);
     }
     g_thread_name_counter = (g_thread_name_counter == kThreadNameRefreshInterval) ? 0 : (g_thread_name_counter + 1);
@@ -378,14 +413,14 @@ bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, 
     return true;
 }
 
-static void FillThreadNameRecord(HookRecord* record, int32_t clock_id)
+static void FillThreadNameRecord(HookRecord* record, int32_t clock_id, bool use_pid_tid_cache)
 {
     if (record == nullptr) {
         return;
     }
     record->type = static_cast<uint16_t>(HookEventType::kThreadName);
-    record->pid = CurrentPid();
-    record->tid = CurrentTid();
+    record->pid = MetadataPid(use_pid_tid_cache);
+    record->tid = MetadataTid(use_pid_tid_cache);
     record->ts = NowTs(clock_id);
     prctl(PR_GET_NAME, record->name);
 }
@@ -394,7 +429,7 @@ void HookWriter::MaybeWriteThreadNameLocked(int ablation_stage)
 {
     if (g_thread_name_counter == 0) {
         HookRecord name_record {};
-        FillThreadNameRecord(&name_record, clock_id_);
+        FillThreadNameRecord(&name_record, clock_id_, GetPidTidCacheEnabled());
         WriteRecordLocked(
             name_record,
             ablation_stage >= kAblationStageNotify,
@@ -463,8 +498,9 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
 
     HookRecord record {};
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
-    record.pid = CurrentPid();
-    record.tid = CurrentTid();
+    const bool use_pid_tid_cache = GetPidTidCacheEnabled();
+    record.pid = MetadataPid(use_pid_tid_cache);
+    record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
     record.addr = reinterpret_cast<uint64_t>(ptr);
     record.size = static_cast<uint64_t>(size);
@@ -514,8 +550,9 @@ bool HookWriter::RecordFree(void* ptr)
 
     HookRecord record {};
     record.type = static_cast<uint16_t>(HookEventType::kFree);
-    record.pid = CurrentPid();
-    record.tid = CurrentTid();
+    const bool use_pid_tid_cache = GetPidTidCacheEnabled();
+    record.pid = MetadataPid(use_pid_tid_cache);
+    record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
     record.addr = reinterpret_cast<uint64_t>(ptr);
     record.size = 0;
