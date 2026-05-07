@@ -1,0 +1,13 @@
+main_stage,main_stage_name,sub_stage,sub_stage_name,threads,size,duration,sample_interval,filter_size,baseline_ops,with_hook_ops,overhead_pct
+0,baseline,0,no_hook,1,32,5,1,-1,17165009.60,17165009.60,0.0000
+3,mutex,0,no_subablation,1,32,5,1,-1,17165009.60,7107205.40,58.5948
+4,tracking,1,tracking_sample_filter_only,1,32,5,1,-1,17165009.60,6249267.40,63.5930
+4,tracking,2,tracking_insert_only,1,32,5,1,-1,17165009.60,4080620.60,76.2271
+4,tracking,3,tracking_lookup_only,1,32,5,1,-1,17165009.60,3026948.40,82.3656
+4,tracking,4,tracking_full_erase,1,32,5,1,-1,17165009.60,1806671.00,89.4747
+0,baseline,0,no_hook,4,32,5,1,-1,14096427.20,14096427.20,0.0000
+3,mutex,0,no_subablation,4,32,5,1,-1,14096427.20,2946651.40,79.0965
+4,tracking,1,tracking_sample_filter_only,4,32,5,1,-1,14096427.20,2143224.80,84.7960
+4,tracking,2,tracking_insert_only,4,32,5,1,-1,14096427.20,1375299.80,90.2436
+4,tracking,3,tracking_lookup_only,4,32,5,1,-1,14096427.20,995139.40,92.9405
+4,tracking,4,tracking_full_erase,4,32,5,1,-1,14096427.20,479344.20,96.5995
