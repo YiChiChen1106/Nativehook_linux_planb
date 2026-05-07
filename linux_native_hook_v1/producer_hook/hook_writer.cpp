@@ -46,6 +46,7 @@ const char* ResolveSocketPath()
 
 thread_local uint32_t g_thread_name_counter = 0;
 thread_local uint32_t g_sample_counter = 0;
+thread_local uint32_t g_cached_tid = 0;
 constexpr uint32_t kThreadNameRefreshInterval = 1000;
 
 bool PassesFilter(int32_t filter_size, size_t size)
@@ -65,8 +66,50 @@ bool ShouldSample(uint32_t sample_interval)
 
 bool IsRecordWriteSubAblationStage(int sub_ablation_stage)
 {
-    return sub_ablation_stage >= kRecordWriteSubStageRecordFillMinimal &&
+    return (sub_ablation_stage >= kRecordWriteSubStageRecordFillMinimal &&
+               sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kRecordWriteSubStageMetadataPidOnly &&
+            sub_ablation_stage <= kRecordWriteSubStageMetadataCachedPidThreadLocalTid);
+}
+
+bool IncludesClockMetadata(int sub_ablation_stage)
+{
+    return (sub_ablation_stage >= kRecordWriteSubStageMetadataClock &&
+               sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kRecordWriteSubStageMetadataPidOnly &&
+            sub_ablation_stage <= kRecordWriteSubStageMetadataCachedPidThreadLocalTid);
+}
+
+bool IncludesSyscallPidTidMetadata(int sub_ablation_stage)
+{
+    return sub_ablation_stage >= kRecordWriteSubStageMetadataPidTid &&
         sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain;
+}
+
+bool IncludesThreadNameMetadata(int sub_ablation_stage)
+{
+    return sub_ablation_stage >= kRecordWriteSubStageMetadataThreadName &&
+        sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain;
+}
+
+bool IncludesRingWritePath(int sub_ablation_stage)
+{
+    return sub_ablation_stage >= kRecordWriteSubStageRingIndexCheck &&
+        sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain;
+}
+
+uint32_t CachedPid()
+{
+    static const uint32_t pid = CurrentPid();
+    return pid;
+}
+
+uint32_t ThreadLocalTid()
+{
+    if (g_cached_tid == 0) {
+        g_cached_tid = CurrentTid();
+    }
+    return g_cached_tid;
 }
 
 }  // namespace
@@ -192,18 +235,32 @@ void HookWriter::FillRecordForSubAblationLocked(
     record->type = static_cast<uint16_t>(type);
     record->addr = addr;
     record->size = size;
-    if (sub_ablation_stage >= kRecordWriteSubStageMetadataClock) {
+    if (IncludesClockMetadata(sub_ablation_stage)) {
         record->ts = NowTs(clock_id_);
     }
-    if (sub_ablation_stage >= kRecordWriteSubStageMetadataPidTid) {
+    if (IncludesSyscallPidTidMetadata(sub_ablation_stage)) {
         record->pid = CurrentPid();
         record->tid = CurrentTid();
+    } else if (sub_ablation_stage == kRecordWriteSubStageMetadataPidOnly) {
+        record->pid = CurrentPid();
+    } else if (sub_ablation_stage == kRecordWriteSubStageMetadataTidSyscallOnly) {
+        record->tid = CurrentTid();
+    } else if (sub_ablation_stage == kRecordWriteSubStageMetadataPidTidSyscall) {
+        record->pid = CurrentPid();
+        record->tid = CurrentTid();
+    } else if (sub_ablation_stage == kRecordWriteSubStageMetadataCachedPidOnly) {
+        record->pid = CachedPid();
+    } else if (sub_ablation_stage == kRecordWriteSubStageMetadataThreadLocalTidOnly) {
+        record->tid = ThreadLocalTid();
+    } else if (sub_ablation_stage == kRecordWriteSubStageMetadataCachedPidThreadLocalTid) {
+        record->pid = CachedPid();
+        record->tid = ThreadLocalTid();
     }
 }
 
 bool HookWriter::WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage)
 {
-    if (sub_ablation_stage < kRecordWriteSubStageRingIndexCheck) {
+    if (!IncludesRingWritePath(sub_ablation_stage)) {
         return true;
     }
     if (header_ == nullptr || records_ == nullptr) {
@@ -236,7 +293,7 @@ bool HookWriter::WriteRecordSubAblationLocked(const HookRecord& record, int sub_
 
 void HookWriter::MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage)
 {
-    if (sub_ablation_stage < kRecordWriteSubStageMetadataThreadName) {
+    if (!IncludesThreadNameMetadata(sub_ablation_stage)) {
         return;
     }
 
