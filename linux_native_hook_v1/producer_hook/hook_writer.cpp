@@ -134,6 +134,11 @@ bool HookWriter::ShouldRecordAllocLocked(size_t size)
     return ShouldSample(sample_interval_);
 }
 
+bool HookWriter::HasTrackedAllocLocked(uint64_t addr) const
+{
+    return tracked_allocations_.find(addr) != tracked_allocations_.end();
+}
+
 bool HookWriter::ConsumeTrackedAllocLocked(uint64_t addr)
 {
     const auto it = tracked_allocations_.find(addr);
@@ -142,6 +147,31 @@ bool HookWriter::ConsumeTrackedAllocLocked(uint64_t addr)
     }
     tracked_allocations_.erase(it);
     return true;
+}
+
+bool HookWriter::RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage)
+{
+    const bool should_record = ShouldRecordAllocLocked(size);
+    if (sub_ablation_stage == kTrackingSubStageSampleFilterOnly) {
+        return should_record;
+    }
+    if (!should_record) {
+        return false;
+    }
+    tracked_allocations_.insert(addr);
+    return true;
+}
+
+bool HookWriter::RecordTrackingAblationFreeLocked(uint64_t addr, int sub_ablation_stage)
+{
+    if (sub_ablation_stage == kTrackingSubStageSampleFilterOnly ||
+        sub_ablation_stage == kTrackingSubStageInsertOnly) {
+        return true;
+    }
+    if (sub_ablation_stage == kTrackingSubStageLookupOnly) {
+        return HasTrackedAllocLocked(addr);
+    }
+    return ConsumeTrackedAllocLocked(addr);
 }
 
 bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain)
@@ -241,9 +271,8 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
         return true;
     }
     if (ablation_stage == kAblationStageTracking) {
-        if (ShouldRecordAllocLocked(size)) {
-            tracked_allocations_.insert(reinterpret_cast<uint64_t>(ptr));
-        }
+        RecordTrackingAblationAllocLocked(
+            reinterpret_cast<uint64_t>(ptr), size, GetSubAblationStage());
         pthread_mutex_unlock(&mutex_);
         return true;
     }
@@ -290,7 +319,8 @@ bool HookWriter::RecordFree(void* ptr)
         return true;
     }
     if (ablation_stage == kAblationStageTracking) {
-        const bool ret = ConsumeTrackedAllocLocked(reinterpret_cast<uint64_t>(ptr));
+        const bool ret = RecordTrackingAblationFreeLocked(
+            reinterpret_cast<uint64_t>(ptr), GetSubAblationStage());
         pthread_mutex_unlock(&mutex_);
         return ret;
     }

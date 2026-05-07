@@ -26,7 +26,10 @@ private:
 
     bool EnsureConnectedLocked();
     bool ShouldRecordAllocLocked(size_t size);
+    bool HasTrackedAllocLocked(uint64_t addr) const;
     bool ConsumeTrackedAllocLocked(uint64_t addr);
+    bool RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage);
+    bool RecordTrackingAblationFreeLocked(uint64_t addr, int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
     bool WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain);
