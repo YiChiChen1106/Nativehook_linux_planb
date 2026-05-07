@@ -63,7 +63,15 @@ bool ShouldSample(uint32_t sample_interval)
     return keep;
 }
 
+bool IsRecordWriteSubAblationStage(int sub_ablation_stage)
+{
+    return sub_ablation_stage >= kRecordWriteSubStageRecordFillMinimal &&
+        sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain;
+}
+
 }  // namespace
+
+static void FillThreadNameRecord(HookRecord* record, int32_t clock_id);
 
 HookWriter::HookWriter()
     : flush_threshold_(kDefaultFlushThreshold)
@@ -174,6 +182,108 @@ bool HookWriter::RecordTrackingAblationFreeLocked(uint64_t addr, int sub_ablatio
     return ConsumeTrackedAllocLocked(addr);
 }
 
+void HookWriter::FillRecordForSubAblationLocked(
+    HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage)
+{
+    if (record == nullptr) {
+        return;
+    }
+
+    record->type = static_cast<uint16_t>(type);
+    record->addr = addr;
+    record->size = size;
+    if (sub_ablation_stage >= kRecordWriteSubStageMetadataClock) {
+        record->ts = NowTs(clock_id_);
+    }
+    if (sub_ablation_stage >= kRecordWriteSubStageMetadataPidTid) {
+        record->pid = CurrentPid();
+        record->tid = CurrentTid();
+    }
+}
+
+bool HookWriter::WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage)
+{
+    if (sub_ablation_stage < kRecordWriteSubStageRingIndexCheck) {
+        return true;
+    }
+    if (header_ == nullptr || records_ == nullptr) {
+        return false;
+    }
+
+    const uint32_t capacity = header_->capacity;
+    const uint32_t write_index = AtomicLoadU32(&header_->write_index);
+    const uint32_t read_index = AtomicLoadU32(&header_->read_index);
+    const uint32_t next_write = (write_index + 1) % capacity;
+    if (next_write == read_index) {
+        AtomicFetchAddU32(&header_->dropped, 1);
+        return false;
+    }
+    if (sub_ablation_stage == kRecordWriteSubStageRingIndexCheck) {
+        return true;
+    }
+
+    records_[write_index] = record;
+    if (sub_ablation_stage == kRecordWriteSubStageShmRecordCopy) {
+        return true;
+    }
+
+    AtomicStoreU32(&header_->write_index, next_write);
+    ++pending_count_;
+    AtomicStoreU32(&header_->read_index, next_write);
+    pending_count_ = 0;
+    return true;
+}
+
+void HookWriter::MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage)
+{
+    if (sub_ablation_stage < kRecordWriteSubStageMetadataThreadName) {
+        return;
+    }
+
+    if (g_thread_name_counter == 0) {
+        HookRecord name_record {};
+        FillThreadNameRecord(&name_record, clock_id_);
+        WriteRecordSubAblationLocked(name_record, sub_ablation_stage);
+    }
+    g_thread_name_counter = (g_thread_name_counter == kThreadNameRefreshInterval) ? 0 : (g_thread_name_counter + 1);
+}
+
+bool HookWriter::RecordWriteSubAblationAllocLocked(void* ptr, size_t size, int sub_ablation_stage)
+{
+    if (!ShouldRecordAllocLocked(size)) {
+        return false;
+    }
+
+    MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
+
+    HookRecord record {};
+    FillRecordForSubAblationLocked(
+        &record,
+        HookEventType::kMalloc,
+        reinterpret_cast<uint64_t>(ptr),
+        static_cast<uint64_t>(size),
+        sub_ablation_stage);
+    const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
+    if (ret) {
+        tracked_allocations_.insert(reinterpret_cast<uint64_t>(ptr));
+    }
+    return ret;
+}
+
+bool HookWriter::RecordWriteSubAblationFreeLocked(void* ptr, int sub_ablation_stage)
+{
+    const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    if (header_ == nullptr || !ConsumeTrackedAllocLocked(addr)) {
+        return false;
+    }
+
+    MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
+
+    HookRecord record {};
+    FillRecordForSubAblationLocked(&record, HookEventType::kFree, addr, 0, sub_ablation_stage);
+    return WriteRecordSubAblationLocked(record, sub_ablation_stage);
+}
+
 bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain)
 {
     if (header_ == nullptr || records_ == nullptr) {
@@ -281,6 +391,12 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
         pthread_mutex_unlock(&mutex_);
         return false;
     }
+    const int sub_ablation_stage = GetSubAblationStage();
+    if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {
+        const bool ret = RecordWriteSubAblationAllocLocked(ptr, size, sub_ablation_stage);
+        pthread_mutex_unlock(&mutex_);
+        return ret;
+    }
     if (!ShouldRecordAllocLocked(size)) {
         pthread_mutex_unlock(&mutex_);
         return false;
@@ -321,6 +437,13 @@ bool HookWriter::RecordFree(void* ptr)
     if (ablation_stage == kAblationStageTracking) {
         const bool ret = RecordTrackingAblationFreeLocked(
             reinterpret_cast<uint64_t>(ptr), GetSubAblationStage());
+        pthread_mutex_unlock(&mutex_);
+        return ret;
+    }
+
+    const int sub_ablation_stage = GetSubAblationStage();
+    if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {
+        const bool ret = RecordWriteSubAblationFreeLocked(ptr, sub_ablation_stage);
         pthread_mutex_unlock(&mutex_);
         return ret;
     }

@@ -30,6 +30,12 @@ private:
     bool ConsumeTrackedAllocLocked(uint64_t addr);
     bool RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage);
     bool RecordTrackingAblationFreeLocked(uint64_t addr, int sub_ablation_stage);
+    bool RecordWriteSubAblationAllocLocked(void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordWriteSubAblationFreeLocked(void* ptr, int sub_ablation_stage);
+    bool WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage);
+    void FillRecordForSubAblationLocked(
+        HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage);
+    void MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
     bool WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain);

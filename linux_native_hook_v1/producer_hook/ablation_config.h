@@ -15,7 +15,14 @@ constexpr int kTrackingSubStageSampleFilterOnly = 1;
 constexpr int kTrackingSubStageInsertOnly = 2;
 constexpr int kTrackingSubStageLookupOnly = 3;
 constexpr int kTrackingSubStageFullErase = 4;
-constexpr int kMaxSubAblationStage = kTrackingSubStageFullErase;
+constexpr int kRecordWriteSubStageRecordFillMinimal = 5;
+constexpr int kRecordWriteSubStageMetadataClock = 6;
+constexpr int kRecordWriteSubStageMetadataPidTid = 7;
+constexpr int kRecordWriteSubStageMetadataThreadName = 8;
+constexpr int kRecordWriteSubStageRingIndexCheck = 9;
+constexpr int kRecordWriteSubStageShmRecordCopy = 10;
+constexpr int kRecordWriteSubStageAtomicIndexSelfDrain = 11;
+constexpr int kMaxSubAblationStage = kRecordWriteSubStageAtomicIndexSelfDrain;
 
 int GetAblationStage();
 int GetSubAblationStage();
