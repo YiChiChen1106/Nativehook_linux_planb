@@ -34,8 +34,12 @@ constexpr int kRecordWriteSubStageCachedShmRecordCopy = 20;
 constexpr int kRecordWriteSubStageCachedAtomicIndexSelfDrain = 21;
 constexpr int kMaxSubAblationStage = kRecordWriteSubStageCachedAtomicIndexSelfDrain;
 
+constexpr int kTrackingModeGlobal = 0;
+constexpr int kTrackingModeSharded = 1;
+
 int GetAblationStage();
 int GetSubAblationStage();
 bool GetPidTidCacheEnabled();
+int GetTrackingMode();
 
 }  // namespace linux_native_hook_v1

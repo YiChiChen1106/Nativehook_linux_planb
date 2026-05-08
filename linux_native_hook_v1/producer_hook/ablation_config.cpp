@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <cstring>
 
 namespace linux_native_hook_v1 {
 namespace {
@@ -12,6 +13,8 @@ constexpr int kUnsetSubAblationStage = -1;
 std::atomic<int> g_cached_sub_ablation_stage {kUnsetSubAblationStage};
 constexpr int kUnsetPidTidCacheEnabled = -1;
 std::atomic<int> g_cached_pid_tid_cache_enabled {kUnsetPidTidCacheEnabled};
+constexpr int kUnsetTrackingMode = -1;
+std::atomic<int> g_cached_tracking_mode {kUnsetTrackingMode};
 
 int ParseAblationStageFromEnv()
 {
@@ -63,6 +66,22 @@ bool ParsePidTidCacheEnabledFromEnv()
     return value == 1;
 }
 
+int ParseTrackingModeFromEnv()
+{
+    const char* text = std::getenv("LNHV1_TRACKING_MODE");
+    if (text == nullptr || text[0] == '\0') {
+        return kTrackingModeGlobal;
+    }
+
+    if (std::strcmp(text, "sharded") == 0) {
+        return kTrackingModeSharded;
+    }
+    if (std::strcmp(text, "global") == 0) {
+        return kTrackingModeGlobal;
+    }
+    return kTrackingModeGlobal;
+}
+
 }  // namespace
 
 int GetAblationStage()
@@ -105,6 +124,20 @@ bool GetPidTidCacheEnabled()
     g_cached_pid_tid_cache_enabled.compare_exchange_strong(
         expected, parsed_enabled, std::memory_order_release, std::memory_order_relaxed);
     return g_cached_pid_tid_cache_enabled.load(std::memory_order_acquire) != 0;
+}
+
+int GetTrackingMode()
+{
+    int mode = g_cached_tracking_mode.load(std::memory_order_acquire);
+    if (mode != kUnsetTrackingMode) {
+        return mode;
+    }
+
+    const int parsed_mode = ParseTrackingModeFromEnv();
+    int expected = kUnsetTrackingMode;
+    g_cached_tracking_mode.compare_exchange_strong(
+        expected, parsed_mode, std::memory_order_release, std::memory_order_relaxed);
+    return g_cached_tracking_mode.load(std::memory_order_acquire);
 }
 
 }  // namespace linux_native_hook_v1

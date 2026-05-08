@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <pthread.h>
@@ -19,19 +20,38 @@ public:
     void Flush();
 
 private:
+    static constexpr size_t kTrackingShardCount = 64;
+
+    struct TrackingShard {
+        pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+        std::unordered_set<uint64_t> allocations;
+    };
+
     HookWriter();
 
     HookWriter(const HookWriter&) = delete;
     HookWriter& operator=(const HookWriter&) = delete;
 
     bool EnsureConnectedLocked();
+    bool EnsureConnectedWithWriterLock();
+    bool HasConnectionWithWriterLock();
     bool ShouldRecordAllocLocked(size_t size);
     bool HasTrackedAllocLocked(uint64_t addr) const;
     bool ConsumeTrackedAllocLocked(uint64_t addr);
+    TrackingShard& TrackingShardFor(uint64_t addr);
+    bool HasTrackedAllocSharded(uint64_t addr);
+    bool ConsumeTrackedAllocSharded(uint64_t addr);
+    void InsertTrackedAllocSharded(uint64_t addr);
     bool RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage);
     bool RecordTrackingAblationFreeLocked(uint64_t addr, int sub_ablation_stage);
+    bool RecordTrackingAblationAllocSharded(uint64_t addr, size_t size, int sub_ablation_stage);
+    bool RecordTrackingAblationFreeSharded(uint64_t addr, int sub_ablation_stage);
     bool RecordWriteSubAblationAllocLocked(void* ptr, size_t size, int sub_ablation_stage);
     bool RecordWriteSubAblationFreeLocked(void* ptr, int sub_ablation_stage);
+    bool RecordWriteSubAblationAllocSharded(void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordWriteSubAblationFreeSharded(void* ptr, int sub_ablation_stage);
+    bool RecordAllocSharded(void* ptr, size_t size, int ablation_stage);
+    bool RecordFreeSharded(void* ptr, int ablation_stage);
     bool WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage);
     void FillRecordForSubAblationLocked(
         HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage);
@@ -57,6 +77,7 @@ private:
     bool is_blocked_ = false;
     const char* socket_path_ = nullptr;
     std::unordered_set<uint64_t> tracked_allocations_;
+    std::array<TrackingShard, kTrackingShardCount> tracking_shards_;
 };
 
 }  // namespace linux_native_hook_v1

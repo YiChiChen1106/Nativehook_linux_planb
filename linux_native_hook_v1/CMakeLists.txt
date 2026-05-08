@@ -115,6 +115,16 @@ set_tests_properties(ablation_config_pid_tid_cache_invalid PROPERTIES
 add_test(NAME ablation_config_sub_ablation_stage_21 COMMAND ablation_config_test sub_ablation 21)
 set_tests_properties(ablation_config_sub_ablation_stage_21 PROPERTIES
     ENVIRONMENT "LNHV1_SUBABLATION_STAGE=21")
+add_test(NAME ablation_config_tracking_mode_default COMMAND ablation_config_test tracking_mode 0)
+add_test(NAME ablation_config_tracking_mode_global COMMAND ablation_config_test tracking_mode 0)
+set_tests_properties(ablation_config_tracking_mode_global PROPERTIES
+    ENVIRONMENT "LNHV1_TRACKING_MODE=global")
+add_test(NAME ablation_config_tracking_mode_sharded COMMAND ablation_config_test tracking_mode 1)
+set_tests_properties(ablation_config_tracking_mode_sharded PROPERTIES
+    ENVIRONMENT "LNHV1_TRACKING_MODE=sharded")
+add_test(NAME ablation_config_tracking_mode_invalid COMMAND ablation_config_test tracking_mode 0)
+set_tests_properties(ablation_config_tracking_mode_invalid PROPERTIES
+    ENVIRONMENT "LNHV1_TRACKING_MODE=invalid")
 
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp

@@ -6,7 +6,7 @@
 int main(int argc, char** argv)
 {
     if (argc != 3) {
-        std::cerr << "usage: ablation_config_test <pid_tid_cache|sub_ablation> <expected>\n";
+        std::cerr << "usage: ablation_config_test <pid_tid_cache|sub_ablation|tracking_mode> <expected>\n";
         return 2;
     }
 
@@ -26,6 +26,16 @@ int main(int argc, char** argv)
         const int actual = linux_native_hook_v1::GetSubAblationStage();
         if (actual != expected) {
             std::cerr << "expected GetSubAblationStage()=" << expected << " actual=" << actual << "\n";
+            return 1;
+        }
+        return 0;
+    }
+
+    if (mode == "tracking_mode") {
+        const int expected = std::atoi(argv[2]);
+        const int actual = linux_native_hook_v1::GetTrackingMode();
+        if (actual != expected) {
+            std::cerr << "expected GetTrackingMode()=" << expected << " actual=" << actual << "\n";
             return 1;
         }
         return 0;

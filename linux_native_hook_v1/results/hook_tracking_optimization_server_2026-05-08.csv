@@ -1,0 +1,17 @@
+main_stage,main_stage_name,tracking_mode,pid_tid_cache,threads,size,duration,flush_threshold,sample_interval,filter_size,blocked,baseline_ops,with_hook_ops,overhead_pct,consumer_log
+0,baseline,none,0,1,32,5,20,1,-1,0,17036003.00,17036003.00,0.0000,
+3,mutex,none,0,1,32,5,20,1,-1,0,17036003.00,6918351.60,59.3898,
+4,tracking,global,0,1,32,5,20,1,-1,0,17036003.00,1656759.40,90.2750,
+5,record_write,global,1,1,32,5,20,1,-1,0,17036003.00,1362658.80,92.0013,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage5_record_write_global_cache1_t1_s32_d5.consumer.log
+6,notify,global,1,1,32,5,20,1,-1,0,17036003.00,1063111.60,93.7596,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage6_notify_global_cache1_t1_s32_d5.consumer.log
+4,tracking,sharded,0,1,32,5,20,1,-1,0,17036003.00,1792899.80,89.4758,
+5,record_write,sharded,1,1,32,5,20,1,-1,0,17036003.00,1315109.40,92.2804,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage5_record_write_sharded_cache1_t1_s32_d5.consumer.log
+6,notify,sharded,1,1,32,5,20,1,-1,0,17036003.00,1074891.00,93.6905,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage6_notify_sharded_cache1_t1_s32_d5.consumer.log
+0,baseline,none,0,4,32,5,20,1,-1,0,22138492.20,22138492.20,0.0000,
+3,mutex,none,0,4,32,5,20,1,-1,0,22138492.20,3568292.20,83.8820,
+4,tracking,global,0,4,32,5,20,1,-1,0,22138492.20,615975.00,97.2176,
+5,record_write,global,1,4,32,5,20,1,-1,0,22138492.20,461591.20,97.9150,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage5_record_write_global_cache1_t4_s32_d5.consumer.log
+6,notify,global,1,4,32,5,20,1,-1,0,22138492.20,424454.80,98.0827,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage6_notify_global_cache1_t4_s32_d5.consumer.log
+4,tracking,sharded,0,4,32,5,20,1,-1,0,22138492.20,636716.60,97.1239,
+5,record_write,sharded,1,4,32,5,20,1,-1,0,22138492.20,574598.40,97.4045,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage5_record_write_sharded_cache1_t4_s32_d5.consumer.log
+6,notify,sharded,1,4,32,5,20,1,-1,0,22138492.20,529945.00,97.6062,/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1/results/logs/tracking_optimization_stage6_notify_sharded_cache1_t4_s32_d5.consumer.log
