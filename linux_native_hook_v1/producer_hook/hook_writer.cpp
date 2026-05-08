@@ -79,7 +79,9 @@ bool IsRecordWriteSubAblationStage(int sub_ablation_stage)
         (sub_ablation_stage >= kRecordWriteSubStageMetadataPidOnly &&
             sub_ablation_stage <= kRecordWriteSubStageMetadataCachedPidThreadLocalTid) ||
         (sub_ablation_stage >= kRecordWriteSubStageCachedThreadNameNoRing &&
-            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain);
+            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kWriterRingSubStageWriterLockOnly &&
+            sub_ablation_stage <= kWriterRingSubStageAtomicIndexSelfDrain);
 }
 
 bool IncludesClockMetadata(int sub_ablation_stage)
@@ -89,7 +91,9 @@ bool IncludesClockMetadata(int sub_ablation_stage)
         (sub_ablation_stage >= kRecordWriteSubStageMetadataPidOnly &&
             sub_ablation_stage <= kRecordWriteSubStageMetadataCachedPidThreadLocalTid) ||
         (sub_ablation_stage >= kRecordWriteSubStageCachedThreadNameNoRing &&
-            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain);
+            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kWriterRingSubStageRecordFillCached &&
+            sub_ablation_stage <= kWriterRingSubStageAtomicIndexSelfDrain);
 }
 
 bool IncludesSyscallPidTidMetadata(int sub_ablation_stage)
@@ -103,7 +107,9 @@ bool IncludesThreadNameMetadata(int sub_ablation_stage)
     return (sub_ablation_stage >= kRecordWriteSubStageMetadataThreadName &&
                sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain) ||
         (sub_ablation_stage >= kRecordWriteSubStageCachedThreadNameNoRing &&
-            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain);
+            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kWriterRingSubStageThreadNameNoRing &&
+            sub_ablation_stage <= kWriterRingSubStageAtomicIndexSelfDrain);
 }
 
 bool IncludesRingWritePath(int sub_ablation_stage)
@@ -111,26 +117,32 @@ bool IncludesRingWritePath(int sub_ablation_stage)
     return (sub_ablation_stage >= kRecordWriteSubStageRingIndexCheck &&
                sub_ablation_stage <= kRecordWriteSubStageAtomicIndexSelfDrain) ||
         (sub_ablation_stage >= kRecordWriteSubStageCachedRingIndexCheck &&
-            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain);
+            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kWriterRingSubStageRingIndexCheck &&
+            sub_ablation_stage <= kWriterRingSubStageAtomicIndexSelfDrain);
 }
 
 bool IsRingIndexCheckOnlyStage(int sub_ablation_stage)
 {
     return sub_ablation_stage == kRecordWriteSubStageRingIndexCheck ||
-        sub_ablation_stage == kRecordWriteSubStageCachedRingIndexCheck;
+        sub_ablation_stage == kRecordWriteSubStageCachedRingIndexCheck ||
+        sub_ablation_stage == kWriterRingSubStageRingIndexCheck;
 }
 
 bool IsShmRecordCopyOnlyStage(int sub_ablation_stage)
 {
     return sub_ablation_stage == kRecordWriteSubStageShmRecordCopy ||
-        sub_ablation_stage == kRecordWriteSubStageCachedShmRecordCopy;
+        sub_ablation_stage == kRecordWriteSubStageCachedShmRecordCopy ||
+        sub_ablation_stage == kWriterRingSubStageShmRecordCopy;
 }
 
 bool UsesCachedPidTidMetadata(int sub_ablation_stage)
 {
     return sub_ablation_stage == kRecordWriteSubStageMetadataCachedPidThreadLocalTid ||
         (sub_ablation_stage >= kRecordWriteSubStageCachedThreadNameNoRing &&
-            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain);
+            sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain) ||
+        (sub_ablation_stage >= kWriterRingSubStageRecordFillCached &&
+            sub_ablation_stage <= kWriterRingSubStageAtomicIndexSelfDrain);
 }
 
 void ResetPidTidCacheInChild()
@@ -403,6 +415,10 @@ void HookWriter::FillRecordForSubAblationLocked(
         sub_ablation_stage <= kRecordWriteSubStageCachedAtomicIndexSelfDrain) {
         record->pid = CachedPid();
         record->tid = ThreadLocalTid();
+    } else if (sub_ablation_stage >= kWriterRingSubStageRecordFillCached &&
+        sub_ablation_stage <= kWriterRingSubStageAtomicIndexSelfDrain) {
+        record->pid = CachedPid();
+        record->tid = ThreadLocalTid();
     }
 }
 
@@ -458,6 +474,10 @@ bool HookWriter::RecordWriteSubAblationAllocLocked(void* ptr, size_t size, int s
     if (!ShouldRecordAllocLocked(size)) {
         return false;
     }
+    if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
+        tracked_allocations_.insert(reinterpret_cast<uint64_t>(ptr));
+        return true;
+    }
 
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
 
@@ -481,6 +501,9 @@ bool HookWriter::RecordWriteSubAblationFreeLocked(void* ptr, int sub_ablation_st
     if (header_ == nullptr || !ConsumeTrackedAllocLocked(addr)) {
         return false;
     }
+    if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
+        return true;
+    }
 
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
 
@@ -493,6 +516,13 @@ bool HookWriter::RecordWriteSubAblationAllocSharded(void* ptr, size_t size, int 
 {
     if (!ShouldRecordAllocLocked(size)) {
         return false;
+    }
+
+    if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
+        pthread_mutex_lock(&mutex_);
+        pthread_mutex_unlock(&mutex_);
+        InsertTrackedAllocSharded(reinterpret_cast<uint64_t>(ptr));
+        return true;
     }
 
     HookRecord record {};
@@ -521,6 +551,12 @@ bool HookWriter::RecordWriteSubAblationFreeSharded(void* ptr, int sub_ablation_s
     const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
     if (!ConsumeTrackedAllocSharded(addr)) {
         return false;
+    }
+
+    if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
+        pthread_mutex_lock(&mutex_);
+        pthread_mutex_unlock(&mutex_);
+        return true;
     }
 
     HookRecord record {};
