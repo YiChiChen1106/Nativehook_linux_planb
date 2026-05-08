@@ -28,7 +28,11 @@ constexpr int kRecordWriteSubStageMetadataPidTidSyscall = 14;
 constexpr int kRecordWriteSubStageMetadataCachedPidOnly = 15;
 constexpr int kRecordWriteSubStageMetadataThreadLocalTidOnly = 16;
 constexpr int kRecordWriteSubStageMetadataCachedPidThreadLocalTid = 17;
-constexpr int kMaxSubAblationStage = kRecordWriteSubStageMetadataCachedPidThreadLocalTid;
+constexpr int kRecordWriteSubStageCachedThreadNameNoRing = 18;
+constexpr int kRecordWriteSubStageCachedRingIndexCheck = 19;
+constexpr int kRecordWriteSubStageCachedShmRecordCopy = 20;
+constexpr int kRecordWriteSubStageCachedAtomicIndexSelfDrain = 21;
+constexpr int kMaxSubAblationStage = kRecordWriteSubStageCachedAtomicIndexSelfDrain;
 
 int GetAblationStage();
 int GetSubAblationStage();

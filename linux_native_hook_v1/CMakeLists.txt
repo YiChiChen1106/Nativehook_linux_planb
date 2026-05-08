@@ -102,16 +102,19 @@ target_compile_options(ablation_config_test
 )
 
 enable_testing()
-add_test(NAME ablation_config_pid_tid_cache_default COMMAND ablation_config_test 0)
-add_test(NAME ablation_config_pid_tid_cache_disabled COMMAND ablation_config_test 0)
+add_test(NAME ablation_config_pid_tid_cache_default COMMAND ablation_config_test pid_tid_cache 0)
+add_test(NAME ablation_config_pid_tid_cache_disabled COMMAND ablation_config_test pid_tid_cache 0)
 set_tests_properties(ablation_config_pid_tid_cache_disabled PROPERTIES
     ENVIRONMENT "LNHV1_PID_TID_CACHE=0")
-add_test(NAME ablation_config_pid_tid_cache_enabled COMMAND ablation_config_test 1)
+add_test(NAME ablation_config_pid_tid_cache_enabled COMMAND ablation_config_test pid_tid_cache 1)
 set_tests_properties(ablation_config_pid_tid_cache_enabled PROPERTIES
     ENVIRONMENT "LNHV1_PID_TID_CACHE=1")
-add_test(NAME ablation_config_pid_tid_cache_invalid COMMAND ablation_config_test 0)
+add_test(NAME ablation_config_pid_tid_cache_invalid COMMAND ablation_config_test pid_tid_cache 0)
 set_tests_properties(ablation_config_pid_tid_cache_invalid PROPERTIES
     ENVIRONMENT "LNHV1_PID_TID_CACHE=invalid")
+add_test(NAME ablation_config_sub_ablation_stage_21 COMMAND ablation_config_test sub_ablation 21)
+set_tests_properties(ablation_config_sub_ablation_stage_21 PROPERTIES
+    ENVIRONMENT "LNHV1_SUBABLATION_STAGE=21")
 
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp
