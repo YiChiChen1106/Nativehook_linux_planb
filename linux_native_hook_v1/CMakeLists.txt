@@ -84,6 +84,22 @@ target_link_libraries(perf_test_data_linux
         Threads::Threads
 )
 
+add_executable(cross_thread_free_linux
+    tests/cross_thread_free_linux.cpp
+)
+
+target_compile_options(cross_thread_free_linux
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
+target_link_libraries(cross_thread_free_linux
+    PRIVATE
+        Threads::Threads
+)
+
 add_executable(ablation_config_test
     tests/ablation_config_test.cpp
     producer_hook/ablation_config.cpp
@@ -125,6 +141,12 @@ set_tests_properties(ablation_config_tracking_mode_global PROPERTIES
 add_test(NAME ablation_config_tracking_mode_sharded COMMAND ablation_config_test tracking_mode 1)
 set_tests_properties(ablation_config_tracking_mode_sharded PROPERTIES
     ENVIRONMENT "LNHV1_TRACKING_MODE=sharded")
+add_test(NAME ablation_config_tracking_mode_thread_local_fallback COMMAND ablation_config_test tracking_mode 2)
+set_tests_properties(ablation_config_tracking_mode_thread_local_fallback PROPERTIES
+    ENVIRONMENT "LNHV1_TRACKING_MODE=thread_local_fallback")
+add_test(NAME ablation_config_tracking_mode_thread_local_only COMMAND ablation_config_test tracking_mode 3)
+set_tests_properties(ablation_config_tracking_mode_thread_local_only PROPERTIES
+    ENVIRONMENT "LNHV1_TRACKING_MODE=thread_local_only")
 add_test(NAME ablation_config_tracking_mode_invalid COMMAND ablation_config_test tracking_mode 0)
 set_tests_properties(ablation_config_tracking_mode_invalid PROPERTIES
     ENVIRONMENT "LNHV1_TRACKING_MODE=invalid")

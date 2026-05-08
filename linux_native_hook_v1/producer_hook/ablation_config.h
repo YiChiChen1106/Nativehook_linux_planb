@@ -42,6 +42,8 @@ constexpr int kMaxSubAblationStage = kWriterRingSubStageAtomicIndexSelfDrain;
 
 constexpr int kTrackingModeGlobal = 0;
 constexpr int kTrackingModeSharded = 1;
+constexpr int kTrackingModeThreadLocalFallback = 2;
+constexpr int kTrackingModeThreadLocalOnly = 3;
 
 int GetAblationStage();
 int GetSubAblationStage();

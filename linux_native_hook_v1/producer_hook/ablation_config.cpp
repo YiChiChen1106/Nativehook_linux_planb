@@ -76,6 +76,12 @@ int ParseTrackingModeFromEnv()
     if (std::strcmp(text, "sharded") == 0) {
         return kTrackingModeSharded;
     }
+    if (std::strcmp(text, "thread_local_fallback") == 0) {
+        return kTrackingModeThreadLocalFallback;
+    }
+    if (std::strcmp(text, "thread_local_only") == 0) {
+        return kTrackingModeThreadLocalOnly;
+    }
     if (std::strcmp(text, "global") == 0) {
         return kTrackingModeGlobal;
     }

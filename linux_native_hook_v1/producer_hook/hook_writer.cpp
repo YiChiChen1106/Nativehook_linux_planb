@@ -45,9 +45,14 @@ const char* ResolveSocketPath()
     return (path != nullptr && path[0] != '\0') ? path : kDefaultSocketPath;
 }
 
+struct ThreadTrackingContext {
+    std::unordered_set<uint64_t> allocations;
+};
+
 thread_local uint32_t g_thread_name_counter = 0;
 thread_local uint32_t g_sample_counter = 0;
 thread_local uint32_t g_cached_tid = 0;
+thread_local ThreadTrackingContext* g_thread_tracking = nullptr;
 std::atomic<uint32_t> g_cached_pid {0};
 pthread_once_t g_pid_tid_cache_atfork_once = PTHREAD_ONCE_INIT;
 constexpr uint32_t kThreadNameRefreshInterval = 1000;
@@ -70,6 +75,14 @@ bool ShouldSample(uint32_t sample_interval)
 size_t TrackingShardIndex(uint64_t addr)
 {
     return static_cast<size_t>(((addr >> 4) ^ (addr >> 12) ^ (addr >> 20)) & 63U);
+}
+
+ThreadTrackingContext& ThreadTracking()
+{
+    if (g_thread_tracking == nullptr) {
+        g_thread_tracking = new ThreadTrackingContext();
+    }
+    return *g_thread_tracking;
 }
 
 bool IsRecordWriteSubAblationStage(int sub_ablation_stage)
@@ -381,6 +394,60 @@ bool HookWriter::RecordTrackingAblationFreeSharded(uint64_t addr, int sub_ablati
     return ConsumeTrackedAllocSharded(addr);
 }
 
+bool HookWriter::HasTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
+{
+    ThreadTrackingContext& context = ThreadTracking();
+    if (context.allocations.find(addr) != context.allocations.end()) {
+        return use_fallback ? HasTrackedAllocSharded(addr) : true;
+    }
+    return use_fallback ? HasTrackedAllocSharded(addr) : false;
+}
+
+bool HookWriter::ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
+{
+    ThreadTrackingContext& context = ThreadTracking();
+    const auto local_it = context.allocations.find(addr);
+    if (local_it != context.allocations.end()) {
+        context.allocations.erase(local_it);
+        return use_fallback ? ConsumeTrackedAllocSharded(addr) : true;
+    }
+    return use_fallback ? ConsumeTrackedAllocSharded(addr) : false;
+}
+
+void HookWriter::InsertTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
+{
+    ThreadTracking().allocations.insert(addr);
+    if (use_fallback) {
+        InsertTrackedAllocSharded(addr);
+    }
+}
+
+bool HookWriter::RecordTrackingAblationAllocThreadLocal(
+    bool use_fallback, uint64_t addr, size_t size, int sub_ablation_stage)
+{
+    const bool should_record = ShouldRecordAllocLocked(size);
+    if (sub_ablation_stage == kTrackingSubStageSampleFilterOnly) {
+        return should_record;
+    }
+    if (!should_record) {
+        return false;
+    }
+    InsertTrackedAllocThreadLocal(use_fallback, addr);
+    return true;
+}
+
+bool HookWriter::RecordTrackingAblationFreeThreadLocal(bool use_fallback, uint64_t addr, int sub_ablation_stage)
+{
+    if (sub_ablation_stage == kTrackingSubStageSampleFilterOnly ||
+        sub_ablation_stage == kTrackingSubStageInsertOnly) {
+        return true;
+    }
+    if (sub_ablation_stage == kTrackingSubStageLookupOnly) {
+        return HasTrackedAllocThreadLocal(use_fallback, addr);
+    }
+    return ConsumeTrackedAllocThreadLocal(use_fallback, addr);
+}
+
 void HookWriter::FillRecordForSubAblationLocked(
     HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage)
 {
@@ -644,6 +711,139 @@ bool HookWriter::RecordFreeSharded(void* ptr, int ablation_stage)
     return ret;
 }
 
+bool HookWriter::RecordWriteSubAblationAllocThreadLocal(
+    bool use_fallback, void* ptr, size_t size, int sub_ablation_stage)
+{
+    if (!ShouldRecordAllocLocked(size)) {
+        return false;
+    }
+
+    if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
+        pthread_mutex_lock(&mutex_);
+        pthread_mutex_unlock(&mutex_);
+        InsertTrackedAllocThreadLocal(use_fallback, reinterpret_cast<uint64_t>(ptr));
+        return true;
+    }
+
+    HookRecord record {};
+    pthread_mutex_lock(&mutex_);
+    MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
+    FillRecordForSubAblationLocked(
+        &record,
+        HookEventType::kMalloc,
+        reinterpret_cast<uint64_t>(ptr),
+        static_cast<uint64_t>(size),
+        sub_ablation_stage);
+    const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
+    pthread_mutex_unlock(&mutex_);
+    if (ret) {
+        InsertTrackedAllocThreadLocal(use_fallback, reinterpret_cast<uint64_t>(ptr));
+    }
+    return ret;
+}
+
+bool HookWriter::RecordWriteSubAblationFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage)
+{
+    if (!HasConnectionWithWriterLock()) {
+        return false;
+    }
+
+    const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    if (!ConsumeTrackedAllocThreadLocal(use_fallback, addr)) {
+        return false;
+    }
+
+    if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
+        pthread_mutex_lock(&mutex_);
+        pthread_mutex_unlock(&mutex_);
+        return true;
+    }
+
+    HookRecord record {};
+    pthread_mutex_lock(&mutex_);
+    MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
+    FillRecordForSubAblationLocked(&record, HookEventType::kFree, addr, 0, sub_ablation_stage);
+    const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
+    pthread_mutex_unlock(&mutex_);
+    return ret;
+}
+
+bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage)
+{
+    const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    if (ablation_stage == kAblationStageTracking) {
+        RecordTrackingAblationAllocThreadLocal(use_fallback, addr, size, GetSubAblationStage());
+        return true;
+    }
+
+    if (!EnsureConnectedWithWriterLock()) {
+        return false;
+    }
+
+    const int sub_ablation_stage = GetSubAblationStage();
+    if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {
+        return RecordWriteSubAblationAllocThreadLocal(use_fallback, ptr, size, sub_ablation_stage);
+    }
+
+    if (!ShouldRecordAllocLocked(size)) {
+        return false;
+    }
+
+    HookRecord record {};
+    pthread_mutex_lock(&mutex_);
+    MaybeWriteThreadNameLocked(ablation_stage);
+    record.type = static_cast<uint16_t>(HookEventType::kMalloc);
+    const bool use_pid_tid_cache = GetPidTidCacheEnabled();
+    record.pid = MetadataPid(use_pid_tid_cache);
+    record.tid = MetadataTid(use_pid_tid_cache);
+    record.ts = NowTs(clock_id_);
+    record.addr = addr;
+    record.size = static_cast<uint64_t>(size);
+    const bool ret = WriteRecordLocked(
+        record,
+        ablation_stage >= kAblationStageNotify,
+        ablation_stage == kAblationStageRecordWrite);
+    pthread_mutex_unlock(&mutex_);
+    if (ret) {
+        InsertTrackedAllocThreadLocal(use_fallback, record.addr);
+    }
+    return ret;
+}
+
+bool HookWriter::RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablation_stage)
+{
+    const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    if (ablation_stage == kAblationStageTracking) {
+        return RecordTrackingAblationFreeThreadLocal(use_fallback, addr, GetSubAblationStage());
+    }
+
+    const int sub_ablation_stage = GetSubAblationStage();
+    if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {
+        return RecordWriteSubAblationFreeThreadLocal(use_fallback, ptr, sub_ablation_stage);
+    }
+
+    if (!HasConnectionWithWriterLock() || !ConsumeTrackedAllocThreadLocal(use_fallback, addr)) {
+        return false;
+    }
+
+    HookRecord record {};
+    pthread_mutex_lock(&mutex_);
+    MaybeWriteThreadNameLocked(ablation_stage);
+    record.type = static_cast<uint16_t>(HookEventType::kFree);
+    const bool use_pid_tid_cache = GetPidTidCacheEnabled();
+    record.pid = MetadataPid(use_pid_tid_cache);
+    record.tid = MetadataTid(use_pid_tid_cache);
+    record.ts = NowTs(clock_id_);
+    record.addr = addr;
+    record.size = 0;
+    const bool ret = WriteRecordLocked(
+        record,
+        ablation_stage >= kAblationStageNotify,
+        ablation_stage == kAblationStageRecordWrite);
+    pthread_mutex_unlock(&mutex_);
+    return ret;
+}
+
 bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain)
 {
     if (header_ == nullptr || records_ == nullptr) {
@@ -735,8 +935,17 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
     }
 
     const int ablation_stage = GetAblationStage();
-    if (ablation_stage >= kAblationStageTracking && GetTrackingMode() == kTrackingModeSharded) {
-        return RecordAllocSharded(ptr, size, ablation_stage);
+    if (ablation_stage >= kAblationStageTracking) {
+        const int tracking_mode = GetTrackingMode();
+        if (tracking_mode == kTrackingModeSharded) {
+            return RecordAllocSharded(ptr, size, ablation_stage);
+        }
+        if (tracking_mode == kTrackingModeThreadLocalFallback) {
+            return RecordAllocThreadLocal(true, ptr, size, ablation_stage);
+        }
+        if (tracking_mode == kTrackingModeThreadLocalOnly) {
+            return RecordAllocThreadLocal(false, ptr, size, ablation_stage);
+        }
     }
 
     pthread_mutex_lock(&mutex_);
@@ -794,8 +1003,17 @@ bool HookWriter::RecordFree(void* ptr)
     }
 
     const int ablation_stage = GetAblationStage();
-    if (ablation_stage >= kAblationStageTracking && GetTrackingMode() == kTrackingModeSharded) {
-        return RecordFreeSharded(ptr, ablation_stage);
+    if (ablation_stage >= kAblationStageTracking) {
+        const int tracking_mode = GetTrackingMode();
+        if (tracking_mode == kTrackingModeSharded) {
+            return RecordFreeSharded(ptr, ablation_stage);
+        }
+        if (tracking_mode == kTrackingModeThreadLocalFallback) {
+            return RecordFreeThreadLocal(true, ptr, ablation_stage);
+        }
+        if (tracking_mode == kTrackingModeThreadLocalOnly) {
+            return RecordFreeThreadLocal(false, ptr, ablation_stage);
+        }
     }
 
     pthread_mutex_lock(&mutex_);

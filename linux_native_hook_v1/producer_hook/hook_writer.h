@@ -52,6 +52,17 @@ private:
     bool RecordWriteSubAblationFreeSharded(void* ptr, int sub_ablation_stage);
     bool RecordAllocSharded(void* ptr, size_t size, int ablation_stage);
     bool RecordFreeSharded(void* ptr, int ablation_stage);
+    bool HasTrackedAllocThreadLocal(bool use_fallback, uint64_t addr);
+    bool ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr);
+    void InsertTrackedAllocThreadLocal(bool use_fallback, uint64_t addr);
+    bool RecordTrackingAblationAllocThreadLocal(
+        bool use_fallback, uint64_t addr, size_t size, int sub_ablation_stage);
+    bool RecordTrackingAblationFreeThreadLocal(bool use_fallback, uint64_t addr, int sub_ablation_stage);
+    bool RecordWriteSubAblationAllocThreadLocal(
+        bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordWriteSubAblationFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage);
+    bool RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage);
+    bool RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablation_stage);
     bool WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage);
     void FillRecordForSubAblationLocked(
         HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage);
