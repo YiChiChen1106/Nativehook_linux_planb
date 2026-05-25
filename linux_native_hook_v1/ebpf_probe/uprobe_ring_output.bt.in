@@ -45,7 +45,7 @@ uprobe:@@LIBC_PATH@@:free
         @output_records = @output_records + 1;
         printf("LNHV1_RECORD type=free pid=%d tid=%d ts=%llu addr=%p size=%llu comm=%s\n",
             pid, tid, nsecs, arg0, @tracked[pid, arg0], comm);
-        delete(@tracked, pid, arg0);
+        delete(@tracked, (pid, arg0));
     } else {
         @unmatched_frees = @unmatched_frees + 1;
     }

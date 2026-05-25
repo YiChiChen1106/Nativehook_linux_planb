@@ -39,7 +39,7 @@ uprobe:@@LIBC_PATH@@:free
     @free_calls = @free_calls + 1;
     if (arg0 != 0 && @tracked[pid, arg0]) {
         @matched_frees = @matched_frees + 1;
-        delete(@tracked, pid, arg0);
+        delete(@tracked, (pid, arg0));
     } else {
         @unmatched_frees = @unmatched_frees + 1;
     }
