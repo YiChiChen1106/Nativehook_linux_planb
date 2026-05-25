@@ -150,11 +150,22 @@ set_tests_properties(ablation_config_tracking_mode_thread_local_only PROPERTIES
 add_test(NAME ablation_config_tracking_mode_invalid COMMAND ablation_config_test tracking_mode 0)
 set_tests_properties(ablation_config_tracking_mode_invalid PROPERTIES
     ENVIRONMENT "LNHV1_TRACKING_MODE=invalid")
+add_test(NAME ablation_config_hotpath_profile_default COMMAND ablation_config_test hotpath_profile 0)
+add_test(NAME ablation_config_hotpath_profile_disabled COMMAND ablation_config_test hotpath_profile 0)
+set_tests_properties(ablation_config_hotpath_profile_disabled PROPERTIES
+    ENVIRONMENT "LNHV1_HOTPATH_PROFILE=0")
+add_test(NAME ablation_config_hotpath_profile_enabled COMMAND ablation_config_test hotpath_profile 1)
+set_tests_properties(ablation_config_hotpath_profile_enabled PROPERTIES
+    ENVIRONMENT "LNHV1_HOTPATH_PROFILE=1")
+add_test(NAME ablation_config_hotpath_profile_invalid COMMAND ablation_config_test hotpath_profile 0)
+set_tests_properties(ablation_config_hotpath_profile_invalid PROPERTIES
+    ENVIRONMENT "LNHV1_HOTPATH_PROFILE=invalid")
 
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp
     producer_hook/hook_preload.cpp
     producer_hook/hook_guard.cpp
+    producer_hook/hotpath_profile.cpp
     producer_hook/hook_writer.cpp
 )
 

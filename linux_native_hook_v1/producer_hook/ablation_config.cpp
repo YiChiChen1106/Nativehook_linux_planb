@@ -15,6 +15,8 @@ constexpr int kUnsetPidTidCacheEnabled = -1;
 std::atomic<int> g_cached_pid_tid_cache_enabled {kUnsetPidTidCacheEnabled};
 constexpr int kUnsetTrackingMode = -1;
 std::atomic<int> g_cached_tracking_mode {kUnsetTrackingMode};
+constexpr int kUnsetHotpathProfileEnabled = -1;
+std::atomic<int> g_cached_hotpath_profile_enabled {kUnsetHotpathProfileEnabled};
 
 int ParseAblationStageFromEnv()
 {
@@ -88,6 +90,22 @@ int ParseTrackingModeFromEnv()
     return kTrackingModeGlobal;
 }
 
+bool ParseHotpathProfileEnabledFromEnv()
+{
+    const char* text = std::getenv("LNHV1_HOTPATH_PROFILE");
+    if (text == nullptr || text[0] == '\0') {
+        return false;
+    }
+
+    char* end_ptr = nullptr;
+    const long value = std::strtol(text, &end_ptr, 10);
+    if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0') {
+        return false;
+    }
+
+    return value == 1;
+}
+
 }  // namespace
 
 int GetAblationStage()
@@ -144,6 +162,20 @@ int GetTrackingMode()
     g_cached_tracking_mode.compare_exchange_strong(
         expected, parsed_mode, std::memory_order_release, std::memory_order_relaxed);
     return g_cached_tracking_mode.load(std::memory_order_acquire);
+}
+
+bool GetHotpathProfileEnabled()
+{
+    int enabled = g_cached_hotpath_profile_enabled.load(std::memory_order_acquire);
+    if (enabled != kUnsetHotpathProfileEnabled) {
+        return enabled != 0;
+    }
+
+    const int parsed_enabled = ParseHotpathProfileEnabledFromEnv() ? 1 : 0;
+    int expected = kUnsetHotpathProfileEnabled;
+    g_cached_hotpath_profile_enabled.compare_exchange_strong(
+        expected, parsed_enabled, std::memory_order_release, std::memory_order_relaxed);
+    return g_cached_hotpath_profile_enabled.load(std::memory_order_acquire) != 0;
 }
 
 }  // namespace linux_native_hook_v1

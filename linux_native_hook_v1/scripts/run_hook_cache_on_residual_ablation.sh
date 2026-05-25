@@ -224,6 +224,7 @@ build_with_gxx()
         "${ROOT_DIR}/producer_hook/ablation_config.cpp" \
         "${ROOT_DIR}/producer_hook/hook_preload.cpp" \
         "${ROOT_DIR}/producer_hook/hook_guard.cpp" \
+        "${ROOT_DIR}/producer_hook/hotpath_profile.cpp" \
         "${ROOT_DIR}/producer_hook/hook_writer.cpp" \
         "${ROOT_DIR}/common/socket_fd.cpp" \
         -o "${HOOK_LIB}" -pthread -ldl -lrt

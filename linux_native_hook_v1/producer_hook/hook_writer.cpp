@@ -17,6 +17,7 @@
 #include "common/unix_defs.h"
 #include "producer_hook/ablation_config.h"
 #include "producer_hook/hook_guard.h"
+#include "producer_hook/hotpath_profile.h"
 
 namespace linux_native_hook_v1 {
 
@@ -24,19 +25,27 @@ namespace {
 
 timespec NowTs(clockid_t clock_id)
 {
+    const uint64_t profile_start = HotpathProfileStart();
     timespec ts {};
     clock_gettime(clock_id, &ts);
+    HotpathProfileAdd(HotpathProfileSegment::kMetadataClock, profile_start);
     return ts;
 }
 
 uint32_t CurrentPid()
 {
-    return static_cast<uint32_t>(getpid());
+    const uint64_t profile_start = HotpathProfileStart();
+    const uint32_t pid = static_cast<uint32_t>(getpid());
+    HotpathProfileAdd(HotpathProfileSegment::kMetadataPid, profile_start);
+    return pid;
 }
 
 uint32_t CurrentTid()
 {
-    return static_cast<uint32_t>(syscall(SYS_gettid));
+    const uint64_t profile_start = HotpathProfileStart();
+    const uint32_t tid = static_cast<uint32_t>(syscall(SYS_gettid));
+    HotpathProfileAdd(HotpathProfileSegment::kMetadataTid, profile_start);
+    return tid;
 }
 
 const char* ResolveSocketPath()
@@ -223,6 +232,8 @@ HookWriter& HookWriter::Instance()
 
 bool HookWriter::EnsureConnectedLocked()
 {
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kConnection);
+
     if (header_ != nullptr) {
         return true;
     }
@@ -271,22 +282,28 @@ bool HookWriter::EnsureConnectedLocked()
 
 bool HookWriter::EnsureConnectedWithWriterLock()
 {
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     const bool ret = EnsureConnectedLocked();
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
 bool HookWriter::HasConnectionWithWriterLock()
 {
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     const bool ret = header_ != nullptr;
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
 bool HookWriter::ShouldRecordAllocLocked(size_t size)
 {
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kSampleFilter);
+
     if (!PassesFilter(filter_size_, size)) {
         return false;
     }
@@ -295,16 +312,23 @@ bool HookWriter::ShouldRecordAllocLocked(size_t size)
 
 bool HookWriter::HasTrackedAllocLocked(uint64_t addr) const
 {
-    return tracked_allocations_.find(addr) != tracked_allocations_.end();
+    const uint64_t lookup_start = HotpathProfileStart();
+    const bool ret = tracked_allocations_.find(addr) != tracked_allocations_.end();
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
+    return ret;
 }
 
 bool HookWriter::ConsumeTrackedAllocLocked(uint64_t addr)
 {
+    const uint64_t lookup_start = HotpathProfileStart();
     const auto it = tracked_allocations_.find(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
     if (it == tracked_allocations_.end()) {
         return false;
     }
+    const uint64_t erase_start = HotpathProfileStart();
     tracked_allocations_.erase(it);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingErase, erase_start);
     return true;
 }
 
@@ -316,32 +340,45 @@ HookWriter::TrackingShard& HookWriter::TrackingShardFor(uint64_t addr)
 bool HookWriter::HasTrackedAllocSharded(uint64_t addr)
 {
     TrackingShard& shard = TrackingShardFor(addr);
-    pthread_mutex_lock(&shard.mutex);
+    HotpathProfileMutexGuard lock(
+        &shard.mutex,
+        HotpathProfileSegment::kTrackingShardMutexWait,
+        HotpathProfileSegment::kTrackingShardMutexHold);
+    const uint64_t lookup_start = HotpathProfileStart();
     const bool ret = shard.allocations.find(addr) != shard.allocations.end();
-    pthread_mutex_unlock(&shard.mutex);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
     return ret;
 }
 
 bool HookWriter::ConsumeTrackedAllocSharded(uint64_t addr)
 {
     TrackingShard& shard = TrackingShardFor(addr);
-    pthread_mutex_lock(&shard.mutex);
+    HotpathProfileMutexGuard lock(
+        &shard.mutex,
+        HotpathProfileSegment::kTrackingShardMutexWait,
+        HotpathProfileSegment::kTrackingShardMutexHold);
+    const uint64_t lookup_start = HotpathProfileStart();
     const auto it = shard.allocations.find(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
     if (it == shard.allocations.end()) {
-        pthread_mutex_unlock(&shard.mutex);
         return false;
     }
+    const uint64_t erase_start = HotpathProfileStart();
     shard.allocations.erase(it);
-    pthread_mutex_unlock(&shard.mutex);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingErase, erase_start);
     return true;
 }
 
 void HookWriter::InsertTrackedAllocSharded(uint64_t addr)
 {
     TrackingShard& shard = TrackingShardFor(addr);
-    pthread_mutex_lock(&shard.mutex);
+    HotpathProfileMutexGuard lock(
+        &shard.mutex,
+        HotpathProfileSegment::kTrackingShardMutexWait,
+        HotpathProfileSegment::kTrackingShardMutexHold);
+    const uint64_t insert_start = HotpathProfileStart();
     shard.allocations.insert(addr);
-    pthread_mutex_unlock(&shard.mutex);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
 }
 
 bool HookWriter::RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage)
@@ -353,7 +390,9 @@ bool HookWriter::RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, i
     if (!should_record) {
         return false;
     }
+    const uint64_t insert_start = HotpathProfileStart();
     tracked_allocations_.insert(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
     return true;
 }
 
@@ -397,7 +436,10 @@ bool HookWriter::RecordTrackingAblationFreeSharded(uint64_t addr, int sub_ablati
 bool HookWriter::HasTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
 {
     ThreadTrackingContext& context = ThreadTracking();
-    if (context.allocations.find(addr) != context.allocations.end()) {
+    const uint64_t lookup_start = HotpathProfileStart();
+    const bool local_hit = context.allocations.find(addr) != context.allocations.end();
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
+    if (local_hit) {
         return use_fallback ? HasTrackedAllocSharded(addr) : true;
     }
     return use_fallback ? HasTrackedAllocSharded(addr) : false;
@@ -406,9 +448,13 @@ bool HookWriter::HasTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
 bool HookWriter::ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
 {
     ThreadTrackingContext& context = ThreadTracking();
+    const uint64_t lookup_start = HotpathProfileStart();
     const auto local_it = context.allocations.find(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
     if (local_it != context.allocations.end()) {
+        const uint64_t erase_start = HotpathProfileStart();
         context.allocations.erase(local_it);
+        HotpathProfileAdd(HotpathProfileSegment::kTrackingErase, erase_start);
         return use_fallback ? ConsumeTrackedAllocSharded(addr) : true;
     }
     return use_fallback ? ConsumeTrackedAllocSharded(addr) : false;
@@ -416,7 +462,9 @@ bool HookWriter::ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr
 
 void HookWriter::InsertTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
 {
+    const uint64_t insert_start = HotpathProfileStart();
     ThreadTracking().allocations.insert(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
     if (use_fallback) {
         InsertTrackedAllocSharded(addr);
     }
@@ -455,9 +503,11 @@ void HookWriter::FillRecordForSubAblationLocked(
         return;
     }
 
+    const uint64_t fill_start = HotpathProfileStart();
     record->type = static_cast<uint16_t>(type);
     record->addr = addr;
     record->size = size;
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     if (IncludesClockMetadata(sub_ablation_stage)) {
         record->ts = NowTs(clock_id_);
     }
@@ -498,27 +548,34 @@ bool HookWriter::WriteRecordSubAblationLocked(const HookRecord& record, int sub_
         return false;
     }
 
+    const uint64_t ring_start = HotpathProfileStart();
     const uint32_t capacity = header_->capacity;
     const uint32_t write_index = AtomicLoadU32(&header_->write_index);
     const uint32_t read_index = AtomicLoadU32(&header_->read_index);
     const uint32_t next_write = (write_index + 1) % capacity;
     if (next_write == read_index) {
+        HotpathProfileAdd(HotpathProfileSegment::kRingIndexCheck, ring_start);
         AtomicFetchAddU32(&header_->dropped, 1);
         return false;
     }
+    HotpathProfileAdd(HotpathProfileSegment::kRingIndexCheck, ring_start);
     if (IsRingIndexCheckOnlyStage(sub_ablation_stage)) {
         return true;
     }
 
+    const uint64_t copy_start = HotpathProfileStart();
     records_[write_index] = record;
+    HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, copy_start);
     if (IsShmRecordCopyOnlyStage(sub_ablation_stage)) {
         return true;
     }
 
+    const uint64_t atomic_start = HotpathProfileStart();
     AtomicStoreU32(&header_->write_index, next_write);
     ++pending_count_;
     AtomicStoreU32(&header_->read_index, next_write);
     pending_count_ = 0;
+    HotpathProfileAdd(HotpathProfileSegment::kAtomicIndexUpdate, atomic_start);
     return true;
 }
 
@@ -586,14 +643,20 @@ bool HookWriter::RecordWriteSubAblationAllocSharded(void* ptr, size_t size, int 
     }
 
     if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
-        pthread_mutex_lock(&mutex_);
-        pthread_mutex_unlock(&mutex_);
+        HotpathProfileMutexGuard writer_lock(
+            &mutex_,
+            HotpathProfileSegment::kWriterMutexWait,
+            HotpathProfileSegment::kWriterMutexHold);
+        writer_lock.Unlock();
         InsertTrackedAllocSharded(reinterpret_cast<uint64_t>(ptr));
         return true;
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
     FillRecordForSubAblationLocked(
         &record,
@@ -602,7 +665,7 @@ bool HookWriter::RecordWriteSubAblationAllocSharded(void* ptr, size_t size, int 
         static_cast<uint64_t>(size),
         sub_ablation_stage);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
-    pthread_mutex_unlock(&mutex_);
+    writer_lock.Unlock();
     if (ret) {
         InsertTrackedAllocSharded(reinterpret_cast<uint64_t>(ptr));
     }
@@ -621,17 +684,21 @@ bool HookWriter::RecordWriteSubAblationFreeSharded(void* ptr, int sub_ablation_s
     }
 
     if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
-        pthread_mutex_lock(&mutex_);
-        pthread_mutex_unlock(&mutex_);
+        HotpathProfileMutexGuard writer_lock(
+            &mutex_,
+            HotpathProfileSegment::kWriterMutexWait,
+            HotpathProfileSegment::kWriterMutexHold);
         return true;
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
     FillRecordForSubAblationLocked(&record, HookEventType::kFree, addr, 0, sub_ablation_stage);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
@@ -657,20 +724,25 @@ bool HookWriter::RecordAllocSharded(void* ptr, size_t size, int ablation_stage)
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameLocked(ablation_stage);
+    const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
+    record.addr = addr;
+    record.size = static_cast<uint64_t>(size);
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     const bool use_pid_tid_cache = GetPidTidCacheEnabled();
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
-    record.addr = addr;
-    record.size = static_cast<uint64_t>(size);
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
         ablation_stage == kAblationStageRecordWrite);
-    pthread_mutex_unlock(&mutex_);
+    writer_lock.Unlock();
     if (ret) {
         InsertTrackedAllocSharded(record.addr);
     }
@@ -694,20 +766,24 @@ bool HookWriter::RecordFreeSharded(void* ptr, int ablation_stage)
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameLocked(ablation_stage);
+    const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kFree);
+    record.addr = addr;
+    record.size = 0;
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     const bool use_pid_tid_cache = GetPidTidCacheEnabled();
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
-    record.addr = addr;
-    record.size = 0;
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
         ablation_stage == kAblationStageRecordWrite);
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
@@ -719,14 +795,20 @@ bool HookWriter::RecordWriteSubAblationAllocThreadLocal(
     }
 
     if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
-        pthread_mutex_lock(&mutex_);
-        pthread_mutex_unlock(&mutex_);
+        HotpathProfileMutexGuard writer_lock(
+            &mutex_,
+            HotpathProfileSegment::kWriterMutexWait,
+            HotpathProfileSegment::kWriterMutexHold);
+        writer_lock.Unlock();
         InsertTrackedAllocThreadLocal(use_fallback, reinterpret_cast<uint64_t>(ptr));
         return true;
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
     FillRecordForSubAblationLocked(
         &record,
@@ -735,7 +817,7 @@ bool HookWriter::RecordWriteSubAblationAllocThreadLocal(
         static_cast<uint64_t>(size),
         sub_ablation_stage);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
-    pthread_mutex_unlock(&mutex_);
+    writer_lock.Unlock();
     if (ret) {
         InsertTrackedAllocThreadLocal(use_fallback, reinterpret_cast<uint64_t>(ptr));
     }
@@ -754,17 +836,21 @@ bool HookWriter::RecordWriteSubAblationFreeThreadLocal(bool use_fallback, void* 
     }
 
     if (sub_ablation_stage == kWriterRingSubStageWriterLockOnly) {
-        pthread_mutex_lock(&mutex_);
-        pthread_mutex_unlock(&mutex_);
+        HotpathProfileMutexGuard writer_lock(
+            &mutex_,
+            HotpathProfileSegment::kWriterMutexWait,
+            HotpathProfileSegment::kWriterMutexHold);
         return true;
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
     FillRecordForSubAblationLocked(&record, HookEventType::kFree, addr, 0, sub_ablation_stage);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
@@ -790,20 +876,25 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameLocked(ablation_stage);
+    const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
+    record.addr = addr;
+    record.size = static_cast<uint64_t>(size);
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     const bool use_pid_tid_cache = GetPidTidCacheEnabled();
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
-    record.addr = addr;
-    record.size = static_cast<uint64_t>(size);
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
         ablation_stage == kAblationStageRecordWrite);
-    pthread_mutex_unlock(&mutex_);
+    writer_lock.Unlock();
     if (ret) {
         InsertTrackedAllocThreadLocal(use_fallback, record.addr);
     }
@@ -827,20 +918,24 @@ bool HookWriter::RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablatio
     }
 
     HookRecord record {};
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameLocked(ablation_stage);
+    const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kFree);
+    record.addr = addr;
+    record.size = 0;
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     const bool use_pid_tid_cache = GetPidTidCacheEnabled();
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
-    record.addr = addr;
-    record.size = 0;
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
         ablation_stage == kAblationStageRecordWrite);
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
@@ -850,23 +945,31 @@ bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, 
         return false;
     }
 
+    const uint64_t ring_start = HotpathProfileStart();
     const uint32_t capacity = header_->capacity;
     const uint32_t write_index = AtomicLoadU32(&header_->write_index);
     const uint32_t read_index = AtomicLoadU32(&header_->read_index);
     const uint32_t next_write = (write_index + 1) % capacity;
     if (next_write == read_index) {
+        HotpathProfileAdd(HotpathProfileSegment::kRingIndexCheck, ring_start);
         AtomicFetchAddU32(&header_->dropped, 1);
         return false;
     }
+    HotpathProfileAdd(HotpathProfileSegment::kRingIndexCheck, ring_start);
 
+    const uint64_t copy_start = HotpathProfileStart();
     records_[write_index] = record;
+    HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, copy_start);
+    const uint64_t atomic_start = HotpathProfileStart();
     AtomicStoreU32(&header_->write_index, next_write);
     ++pending_count_;
     if (self_drain) {
         AtomicStoreU32(&header_->read_index, next_write);
         pending_count_ = 0;
+        HotpathProfileAdd(HotpathProfileSegment::kAtomicIndexUpdate, atomic_start);
         return true;
     }
+    HotpathProfileAdd(HotpathProfileSegment::kAtomicIndexUpdate, atomic_start);
     if (!allow_notify) {
         return true;
     }
@@ -890,7 +993,9 @@ static void FillThreadNameRecord(HookRecord* record, int32_t clock_id, bool use_
     record->pid = MetadataPid(use_pid_tid_cache);
     record->tid = MetadataTid(use_pid_tid_cache);
     record->ts = NowTs(clock_id);
+    const uint64_t thread_name_start = HotpathProfileStart();
     prctl(PR_GET_NAME, record->name);
+    HotpathProfileAdd(HotpathProfileSegment::kThreadName, thread_name_start);
 }
 
 void HookWriter::MaybeWriteThreadNameLocked(int ablation_stage)
@@ -908,6 +1013,8 @@ void HookWriter::MaybeWriteThreadNameLocked(int ablation_stage)
 
 void HookWriter::WaitUntilDrainedLocked() const
 {
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kWaitDrain);
+
     if (header_ == nullptr) {
         return;
     }
@@ -919,6 +1026,8 @@ void HookWriter::WaitUntilDrainedLocked() const
 
 void HookWriter::NotifyLocked()
 {
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kNotify);
+
     if (event_fd_ < 0 || pending_count_ == 0) {
         return;
     }
@@ -930,6 +1039,8 @@ void HookWriter::NotifyLocked()
 
 bool HookWriter::RecordAlloc(void* ptr, size_t size)
 {
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kRecordAllocTotal);
+
     if (ptr == nullptr) {
         return false;
     }
@@ -948,56 +1059,59 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
         }
     }
 
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     if (ablation_stage <= kAblationStageMutex) {
-        pthread_mutex_unlock(&mutex_);
         return true;
     }
     if (ablation_stage == kAblationStageTracking) {
         RecordTrackingAblationAllocLocked(
             reinterpret_cast<uint64_t>(ptr), size, GetSubAblationStage());
-        pthread_mutex_unlock(&mutex_);
         return true;
     }
 
     if (!EnsureConnectedLocked()) {
-        pthread_mutex_unlock(&mutex_);
         return false;
     }
     const int sub_ablation_stage = GetSubAblationStage();
     if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {
         const bool ret = RecordWriteSubAblationAllocLocked(ptr, size, sub_ablation_stage);
-        pthread_mutex_unlock(&mutex_);
         return ret;
     }
     if (!ShouldRecordAllocLocked(size)) {
-        pthread_mutex_unlock(&mutex_);
         return false;
     }
 
     MaybeWriteThreadNameLocked(ablation_stage);
 
     HookRecord record {};
+    const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
+    record.addr = reinterpret_cast<uint64_t>(ptr);
+    record.size = static_cast<uint64_t>(size);
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     const bool use_pid_tid_cache = GetPidTidCacheEnabled();
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
-    record.addr = reinterpret_cast<uint64_t>(ptr);
-    record.size = static_cast<uint64_t>(size);
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
         ablation_stage == kAblationStageRecordWrite);
     if (ret) {
+        const uint64_t insert_start = HotpathProfileStart();
         tracked_allocations_.insert(record.addr);
+        HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
     }
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
 bool HookWriter::RecordFree(void* ptr)
 {
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kRecordFreeTotal);
+
     if (ptr == nullptr) {
         return false;
     }
@@ -1016,45 +1130,45 @@ bool HookWriter::RecordFree(void* ptr)
         }
     }
 
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     if (ablation_stage <= kAblationStageMutex) {
-        pthread_mutex_unlock(&mutex_);
         return true;
     }
     if (ablation_stage == kAblationStageTracking) {
         const bool ret = RecordTrackingAblationFreeLocked(
             reinterpret_cast<uint64_t>(ptr), GetSubAblationStage());
-        pthread_mutex_unlock(&mutex_);
         return ret;
     }
 
     const int sub_ablation_stage = GetSubAblationStage();
     if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {
         const bool ret = RecordWriteSubAblationFreeLocked(ptr, sub_ablation_stage);
-        pthread_mutex_unlock(&mutex_);
         return ret;
     }
 
     if (header_ == nullptr || !ConsumeTrackedAllocLocked(reinterpret_cast<uint64_t>(ptr))) {
-        pthread_mutex_unlock(&mutex_);
         return false;
     }
 
     MaybeWriteThreadNameLocked(ablation_stage);
 
     HookRecord record {};
+    const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kFree);
+    record.addr = reinterpret_cast<uint64_t>(ptr);
+    record.size = 0;
+    HotpathProfileAdd(HotpathProfileSegment::kRecordFill, fill_start);
     const bool use_pid_tid_cache = GetPidTidCacheEnabled();
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
-    record.addr = reinterpret_cast<uint64_t>(ptr);
-    record.size = 0;
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
         ablation_stage == kAblationStageRecordWrite);
-    pthread_mutex_unlock(&mutex_);
     return ret;
 }
 
@@ -1063,9 +1177,11 @@ void HookWriter::Flush()
     if (GetAblationStage() < kAblationStageNotify) {
         return;
     }
-    pthread_mutex_lock(&mutex_);
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
     NotifyLocked();
-    pthread_mutex_unlock(&mutex_);
 }
 
 }  // namespace linux_native_hook_v1

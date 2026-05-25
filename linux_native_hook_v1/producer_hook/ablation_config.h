@@ -49,5 +49,6 @@ int GetAblationStage();
 int GetSubAblationStage();
 bool GetPidTidCacheEnabled();
 int GetTrackingMode();
+bool GetHotpathProfileEnabled();
 
 }  // namespace linux_native_hook_v1

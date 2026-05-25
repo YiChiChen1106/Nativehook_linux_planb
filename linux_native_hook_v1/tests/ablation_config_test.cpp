@@ -6,7 +6,7 @@
 int main(int argc, char** argv)
 {
     if (argc != 3) {
-        std::cerr << "usage: ablation_config_test <pid_tid_cache|sub_ablation|tracking_mode> <expected>\n";
+        std::cerr << "usage: ablation_config_test <pid_tid_cache|sub_ablation|tracking_mode|hotpath_profile> <expected>\n";
         return 2;
     }
 
@@ -36,6 +36,16 @@ int main(int argc, char** argv)
         const int actual = linux_native_hook_v1::GetTrackingMode();
         if (actual != expected) {
             std::cerr << "expected GetTrackingMode()=" << expected << " actual=" << actual << "\n";
+            return 1;
+        }
+        return 0;
+    }
+
+    if (mode == "hotpath_profile") {
+        const bool expected = std::atoi(argv[2]) != 0;
+        const bool actual = linux_native_hook_v1::GetHotpathProfileEnabled();
+        if (actual != expected) {
+            std::cerr << "expected GetHotpathProfileEnabled()=" << expected << " actual=" << actual << "\n";
             return 1;
         }
         return 0;
