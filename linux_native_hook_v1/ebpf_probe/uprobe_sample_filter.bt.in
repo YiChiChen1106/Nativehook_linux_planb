@@ -1,0 +1,40 @@
+BEGIN
+{
+    printf("LNHV1_BPFTRACE_MODE=ebpf_sample_filter sample_interval=@@SAMPLE_INTERVAL@@ filter_size=@@FILTER_SIZE@@\n");
+}
+
+uprobe:@@LIBC_PATH@@:malloc
+{
+    @malloc_calls = @malloc_calls + 1;
+    @alloc_seq[tid] = @alloc_seq[tid] + 1;
+
+    $keep = @alloc_seq[tid] % @@SAMPLE_INTERVAL@@ == 0;
+    if (@@FILTER_SIZE@@ >= 0 && arg0 < @@FILTER_SIZE@@) {
+        $keep = 0;
+    }
+
+    if ($keep) {
+        @pending_size[tid] = arg0;
+        @sampled_malloc_entries = @sampled_malloc_entries + 1;
+    } else {
+        delete(@pending_size, tid);
+    }
+}
+
+uretprobe:@@LIBC_PATH@@:malloc
+/@pending_size[tid]/
+{
+    @sampled_alloc_returns = @sampled_alloc_returns + 1;
+    delete(@pending_size, tid);
+}
+
+uprobe:@@LIBC_PATH@@:free
+{
+    @free_calls = @free_calls + 1;
+}
+
+END
+{
+    clear(@pending_size);
+    clear(@alloc_seq);
+}

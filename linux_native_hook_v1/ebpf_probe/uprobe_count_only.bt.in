@@ -1,0 +1,14 @@
+BEGIN
+{
+    printf("LNHV1_BPFTRACE_MODE=ebpf_count_only\n");
+}
+
+uprobe:@@LIBC_PATH@@:malloc
+{
+    @malloc_calls = @malloc_calls + 1;
+}
+
+uprobe:@@LIBC_PATH@@:free
+{
+    @free_calls = @free_calls + 1;
+}

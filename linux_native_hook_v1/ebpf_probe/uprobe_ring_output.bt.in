@@ -1,0 +1,56 @@
+BEGIN
+{
+    printf("LNHV1_BPFTRACE_MODE=ebpf_ring_output sample_interval=@@SAMPLE_INTERVAL@@ filter_size=@@FILTER_SIZE@@\n");
+}
+
+uprobe:@@LIBC_PATH@@:malloc
+{
+    @malloc_calls = @malloc_calls + 1;
+    @alloc_seq[tid] = @alloc_seq[tid] + 1;
+
+    $keep = @alloc_seq[tid] % @@SAMPLE_INTERVAL@@ == 0;
+    if (@@FILTER_SIZE@@ >= 0 && arg0 < @@FILTER_SIZE@@) {
+        $keep = 0;
+    }
+
+    if ($keep) {
+        @pending_size[tid] = arg0;
+        @sampled_malloc_entries = @sampled_malloc_entries + 1;
+    } else {
+        delete(@pending_size, tid);
+    }
+}
+
+uretprobe:@@LIBC_PATH@@:malloc
+/@pending_size[tid]/
+{
+    if (retval != 0) {
+        @tracked[pid, retval] = @pending_size[tid];
+        @alloc_records = @alloc_records + 1;
+        @output_records = @output_records + 1;
+        printf("LNHV1_RECORD type=alloc pid=%d tid=%d ts=%llu addr=%p size=%llu comm=%s\n",
+            pid, tid, nsecs, retval, @pending_size[tid], comm);
+    }
+    delete(@pending_size, tid);
+}
+
+uprobe:@@LIBC_PATH@@:free
+{
+    @free_calls = @free_calls + 1;
+    if (arg0 != 0 && @tracked[pid, arg0]) {
+        @matched_frees = @matched_frees + 1;
+        @output_records = @output_records + 1;
+        printf("LNHV1_RECORD type=free pid=%d tid=%d ts=%llu addr=%p size=%llu comm=%s\n",
+            pid, tid, nsecs, arg0, @tracked[pid, arg0], comm);
+        delete(@tracked, pid, arg0);
+    } else {
+        @unmatched_frees = @unmatched_frees + 1;
+    }
+}
+
+END
+{
+    clear(@pending_size);
+    clear(@alloc_seq);
+    clear(@tracked);
+}
