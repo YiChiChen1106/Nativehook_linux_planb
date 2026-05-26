@@ -94,6 +94,11 @@ ThreadTrackingContext& ThreadTracking()
     return *g_thread_tracking;
 }
 
+uint64_t ThreadTrackingOwnerId(const ThreadTrackingContext& context)
+{
+    return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&context));
+}
+
 bool IsRecordWriteSubAblationStage(int sub_ablation_stage)
 {
     return (sub_ablation_stage >= kRecordWriteSubStageRecordFillMinimal &&
@@ -381,6 +386,60 @@ void HookWriter::InsertTrackedAllocSharded(uint64_t addr)
     HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
 }
 
+HookWriter::OwnershipShard& HookWriter::OwnershipShardFor(uint64_t addr)
+{
+    return ownership_shards_[TrackingShardIndex(addr)];
+}
+
+void HookWriter::RecordOwnershipThreadLocal(uint64_t addr, uint64_t owner_id)
+{
+    OwnershipShard& shard = OwnershipShardFor(addr);
+    HotpathProfileMutexGuard lock(
+        &shard.mutex,
+        HotpathProfileSegment::kTrackingShardMutexWait,
+        HotpathProfileSegment::kTrackingShardMutexHold);
+    const uint64_t insert_start = HotpathProfileStart();
+    shard.ownership_by_addr[addr] = owner_id;
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
+}
+
+bool HookWriter::HasTrackedAllocOwnershipThreadLocal(uint64_t addr, uint64_t owner_id)
+{
+    OwnershipShard& shard = OwnershipShardFor(addr);
+    HotpathProfileMutexGuard lock(
+        &shard.mutex,
+        HotpathProfileSegment::kTrackingShardMutexWait,
+        HotpathProfileSegment::kTrackingShardMutexHold);
+    const uint64_t lookup_start = HotpathProfileStart();
+    const auto it = shard.ownership_by_addr.find(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
+    if (it == shard.ownership_by_addr.end()) {
+        return false;
+    }
+    return it->second != owner_id;
+}
+
+bool HookWriter::ConsumeTrackedAllocOwnershipThreadLocal(uint64_t addr, uint64_t owner_id)
+{
+    OwnershipShard& shard = OwnershipShardFor(addr);
+    HotpathProfileMutexGuard lock(
+        &shard.mutex,
+        HotpathProfileSegment::kTrackingShardMutexWait,
+        HotpathProfileSegment::kTrackingShardMutexHold);
+    const uint64_t lookup_start = HotpathProfileStart();
+    const auto it = shard.ownership_by_addr.find(addr);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
+    if (it == shard.ownership_by_addr.end()) {
+        return false;
+    }
+
+    const bool cross_thread = it->second != owner_id;
+    const uint64_t erase_start = HotpathProfileStart();
+    shard.ownership_by_addr.erase(it);
+    HotpathProfileAdd(HotpathProfileSegment::kTrackingErase, erase_start);
+    return cross_thread;
+}
+
 bool HookWriter::RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage)
 {
     const bool should_record = ShouldRecordAllocLocked(size);
@@ -440,9 +499,9 @@ bool HookWriter::HasTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
     const bool local_hit = context.allocations.find(addr) != context.allocations.end();
     HotpathProfileAdd(HotpathProfileSegment::kTrackingLookup, lookup_start);
     if (local_hit) {
-        return use_fallback ? HasTrackedAllocSharded(addr) : true;
+        return true;
     }
-    return use_fallback ? HasTrackedAllocSharded(addr) : false;
+    return use_fallback ? HasTrackedAllocOwnershipThreadLocal(addr, ThreadTrackingOwnerId(context)) : false;
 }
 
 bool HookWriter::ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
@@ -455,18 +514,20 @@ bool HookWriter::ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr
         const uint64_t erase_start = HotpathProfileStart();
         context.allocations.erase(local_it);
         HotpathProfileAdd(HotpathProfileSegment::kTrackingErase, erase_start);
-        return use_fallback ? ConsumeTrackedAllocSharded(addr) : true;
+        // Miss-fallback: same-thread frees stay entirely local; shared ownership is checked only on local miss.
+        return true;
     }
-    return use_fallback ? ConsumeTrackedAllocSharded(addr) : false;
+    return use_fallback ? ConsumeTrackedAllocOwnershipThreadLocal(addr, ThreadTrackingOwnerId(context)) : false;
 }
 
 void HookWriter::InsertTrackedAllocThreadLocal(bool use_fallback, uint64_t addr)
 {
+    ThreadTrackingContext& context = ThreadTracking();
     const uint64_t insert_start = HotpathProfileStart();
-    ThreadTracking().allocations.insert(addr);
+    context.allocations.insert(addr);
     HotpathProfileAdd(HotpathProfileSegment::kTrackingInsert, insert_start);
     if (use_fallback) {
-        InsertTrackedAllocSharded(addr);
+        RecordOwnershipThreadLocal(addr, ThreadTrackingOwnerId(context));
     }
 }
 

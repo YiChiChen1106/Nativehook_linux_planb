@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <pthread.h>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "common/shm_layout.h"
@@ -27,6 +28,11 @@ private:
         std::unordered_set<uint64_t> allocations;
     };
 
+    struct OwnershipShard {
+        pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+        std::unordered_map<uint64_t, uint64_t> ownership_by_addr;
+    };
+
     HookWriter();
 
     HookWriter(const HookWriter&) = delete;
@@ -42,6 +48,7 @@ private:
     bool HasTrackedAllocSharded(uint64_t addr);
     bool ConsumeTrackedAllocSharded(uint64_t addr);
     void InsertTrackedAllocSharded(uint64_t addr);
+    OwnershipShard& OwnershipShardFor(uint64_t addr);
     bool RecordTrackingAblationAllocLocked(uint64_t addr, size_t size, int sub_ablation_stage);
     bool RecordTrackingAblationFreeLocked(uint64_t addr, int sub_ablation_stage);
     bool RecordTrackingAblationAllocSharded(uint64_t addr, size_t size, int sub_ablation_stage);
@@ -55,6 +62,9 @@ private:
     bool HasTrackedAllocThreadLocal(bool use_fallback, uint64_t addr);
     bool ConsumeTrackedAllocThreadLocal(bool use_fallback, uint64_t addr);
     void InsertTrackedAllocThreadLocal(bool use_fallback, uint64_t addr);
+    void RecordOwnershipThreadLocal(uint64_t addr, uint64_t owner_id);
+    bool HasTrackedAllocOwnershipThreadLocal(uint64_t addr, uint64_t owner_id);
+    bool ConsumeTrackedAllocOwnershipThreadLocal(uint64_t addr, uint64_t owner_id);
     bool RecordTrackingAblationAllocThreadLocal(
         bool use_fallback, uint64_t addr, size_t size, int sub_ablation_stage);
     bool RecordTrackingAblationFreeThreadLocal(bool use_fallback, uint64_t addr, int sub_ablation_stage);
@@ -89,6 +99,7 @@ private:
     const char* socket_path_ = nullptr;
     std::unordered_set<uint64_t> tracked_allocations_;
     std::array<TrackingShard, kTrackingShardCount> tracking_shards_;
+    std::array<OwnershipShard, kTrackingShardCount> ownership_shards_;
 };
 
 }  // namespace linux_native_hook_v1
