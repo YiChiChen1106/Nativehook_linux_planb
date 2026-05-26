@@ -358,8 +358,12 @@ Lnhv1UprobeStats ReadStats(const struct uprobe_probe_bpf *skel)
 
     for (const Lnhv1UprobeStats &item : values) {
         total.malloc_calls += item.malloc_calls;
+        total.calloc_calls += item.calloc_calls;
+        total.realloc_calls += item.realloc_calls;
         total.free_calls += item.free_calls;
         total.sampled_malloc_entries += item.sampled_malloc_entries;
+        total.sampled_calloc_entries += item.sampled_calloc_entries;
+        total.sampled_realloc_entries += item.sampled_realloc_entries;
         total.sampled_alloc_returns += item.sampled_alloc_returns;
         total.alloc_records += item.alloc_records;
         total.matched_frees += item.matched_frees;
@@ -441,6 +445,14 @@ int main(int argc, char **argv)
             skel->progs.handle_malloc_entry, options.libc_path, "malloc", false);
         struct bpf_link *malloc_return = AttachUprobe(
             skel->progs.handle_malloc_return, options.libc_path, "malloc", true);
+        struct bpf_link *calloc_entry = AttachUprobe(
+            skel->progs.handle_calloc_entry, options.libc_path, "calloc", false);
+        struct bpf_link *calloc_return = AttachUprobe(
+            skel->progs.handle_calloc_return, options.libc_path, "calloc", true);
+        struct bpf_link *realloc_entry = AttachUprobe(
+            skel->progs.handle_realloc_entry, options.libc_path, "realloc", false);
+        struct bpf_link *realloc_return = AttachUprobe(
+            skel->progs.handle_realloc_return, options.libc_path, "realloc", true);
         struct bpf_link *free_entry = AttachUprobe(
             skel->progs.handle_free_entry, options.libc_path, "free", false);
 
@@ -465,6 +477,10 @@ int main(int argc, char **argv)
             ring_buffer__free(ringbuf);
         }
         bpf_link__destroy(free_entry);
+        bpf_link__destroy(realloc_return);
+        bpf_link__destroy(realloc_entry);
+        bpf_link__destroy(calloc_return);
+        bpf_link__destroy(calloc_entry);
         bpf_link__destroy(malloc_return);
         bpf_link__destroy(malloc_entry);
         uprobe_probe_bpf__destroy(skel);
@@ -481,8 +497,12 @@ int main(int argc, char **argv)
                   << " target_tgid=" << config.target_tgid
                   << " throughput_ops=" << throughput
                   << " malloc_calls=" << stats.malloc_calls
+                  << " calloc_calls=" << stats.calloc_calls
+                  << " realloc_calls=" << stats.realloc_calls
                   << " free_calls=" << stats.free_calls
                   << " sampled_malloc_entries=" << stats.sampled_malloc_entries
+                  << " sampled_calloc_entries=" << stats.sampled_calloc_entries
+                  << " sampled_realloc_entries=" << stats.sampled_realloc_entries
                   << " sampled_alloc_returns=" << stats.sampled_alloc_returns
                   << " alloc_records=" << stats.alloc_records
                   << " matched_frees=" << stats.matched_frees

@@ -8,6 +8,12 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
+enum {
+    kLnhv1AllocProbeMalloc = 1,
+    kLnhv1AllocProbeCalloc = 2,
+    kLnhv1AllocProbeRealloc = 3,
+};
+
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, 1);
@@ -122,22 +128,54 @@ static __always_inline void emit_record(__u32 type,
     }
 }
 
-SEC("uprobe/malloc")
-int handle_malloc_entry(struct pt_regs *ctx)
+static __always_inline void count_alloc_call(struct Lnhv1UprobeStats *stat,
+                                             __u32 alloc_kind)
+{
+    if (!stat) {
+        return;
+    }
+
+    if (alloc_kind == kLnhv1AllocProbeMalloc) {
+        stat->malloc_calls += 1;
+    } else if (alloc_kind == kLnhv1AllocProbeCalloc) {
+        stat->calloc_calls += 1;
+    } else if (alloc_kind == kLnhv1AllocProbeRealloc) {
+        stat->realloc_calls += 1;
+    }
+}
+
+static __always_inline void count_sampled_alloc_entry(struct Lnhv1UprobeStats *stat,
+                                                      __u32 alloc_kind)
+{
+    if (!stat) {
+        return;
+    }
+
+    if (alloc_kind == kLnhv1AllocProbeMalloc) {
+        stat->sampled_malloc_entries += 1;
+    } else if (alloc_kind == kLnhv1AllocProbeCalloc) {
+        stat->sampled_calloc_entries += 1;
+    } else if (alloc_kind == kLnhv1AllocProbeRealloc) {
+        stat->sampled_realloc_entries += 1;
+    }
+}
+
+static __always_inline int handle_alloc_entry_common(struct pt_regs *ctx,
+                                                     __u64 size,
+                                                     __u32 alloc_kind)
 {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
     __u32 tid = (__u32)pid_tgid;
-    __u64 size = PT_REGS_PARM1(ctx);
     struct Lnhv1UprobeConfig *cfg = get_config();
     struct Lnhv1UprobeStats *stat = get_stats();
+
+    (void)ctx;
 
     if (!cfg || !target_matches(cfg, pid_tgid)) {
         return 0;
     }
 
-    if (stat) {
-        stat->malloc_calls += 1;
-    }
+    count_alloc_call(stat, alloc_kind);
 
     if (cfg->mode < kLnhv1ModeSampleFilter) {
         return 0;
@@ -145,17 +183,14 @@ int handle_malloc_entry(struct pt_regs *ctx)
 
     if (should_keep_alloc(cfg, tid, size)) {
         bpf_map_update_elem(&pending_alloc, &tid, &size, BPF_ANY);
-        if (stat) {
-            stat->sampled_malloc_entries += 1;
-        }
+        count_sampled_alloc_entry(stat, alloc_kind);
     } else {
         bpf_map_delete_elem(&pending_alloc, &tid);
     }
     return 0;
 }
 
-SEC("uretprobe/malloc")
-int handle_malloc_return(struct pt_regs *ctx)
+static __always_inline int handle_alloc_return_common(struct pt_regs *ctx)
 {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
     __u32 tgid = pid_tgid >> 32;
@@ -197,6 +232,50 @@ int handle_malloc_return(struct pt_regs *ctx)
 
     bpf_map_delete_elem(&pending_alloc, &tid);
     return 0;
+}
+
+SEC("uprobe/malloc")
+int handle_malloc_entry(struct pt_regs *ctx)
+{
+    return handle_alloc_entry_common(ctx,
+                                     PT_REGS_PARM1(ctx),
+                                     kLnhv1AllocProbeMalloc);
+}
+
+SEC("uretprobe/malloc")
+int handle_malloc_return(struct pt_regs *ctx)
+{
+    return handle_alloc_return_common(ctx);
+}
+
+SEC("uprobe/calloc")
+int handle_calloc_entry(struct pt_regs *ctx)
+{
+    __u64 nmemb = PT_REGS_PARM1(ctx);
+    __u64 item_size = PT_REGS_PARM2(ctx);
+    return handle_alloc_entry_common(ctx,
+                                     nmemb * item_size,
+                                     kLnhv1AllocProbeCalloc);
+}
+
+SEC("uretprobe/calloc")
+int handle_calloc_return(struct pt_regs *ctx)
+{
+    return handle_alloc_return_common(ctx);
+}
+
+SEC("uprobe/realloc")
+int handle_realloc_entry(struct pt_regs *ctx)
+{
+    return handle_alloc_entry_common(ctx,
+                                     PT_REGS_PARM2(ctx),
+                                     kLnhv1AllocProbeRealloc);
+}
+
+SEC("uretprobe/realloc")
+int handle_realloc_return(struct pt_regs *ctx)
+{
+    return handle_alloc_return_common(ctx);
 }
 
 SEC("uprobe/free")

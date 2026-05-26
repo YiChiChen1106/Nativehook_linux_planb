@@ -13,6 +13,8 @@ CAPACITY=${LNHV1_CAPACITY:-4096}
 THREADS_LIST=${LNHV1_THREADS_LIST:-1,4}
 SIZE_LIST=${LNHV1_SIZE_LIST:-32}
 DURATION=${LNHV1_DURATION:-5}
+ALLOC_PATTERN_LIST=${LNHV1_ALLOC_PATTERN_LIST:-malloc_only}
+REPEAT_COUNT=${LNHV1_REPEAT:-1}
 LIBBPF_MODE_LIST=${LNHV1_LIBBPF_MODE_LIST:-libbpf_count_only,libbpf_sample_filter,libbpf_tracking,libbpf_ring_output}
 OPT_TRACKING_MODE=${LNHV1_OPT_TRACKING_MODE:-sharded}
 CSV_PATH=${LNHV1_CSV_PATH:-"${ROOT_DIR}/results/libbpf_uprobe_comparison_server_$(date +%F).csv"}
@@ -51,6 +53,14 @@ validate_libbpf_mode()
 {
     case "$1" in
         libbpf_count_only|libbpf_sample_filter|libbpf_tracking|libbpf_ring_output) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+validate_alloc_pattern()
+{
+    case "$1" in
+        malloc_only|mixed3) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -143,8 +153,9 @@ run_workload()
     local threads=$1
     local duration=$2
     local size=$3
+    local alloc_pattern=$4
 
-    "${WORKLOAD}" --threads "${threads}" --duration "${duration}" --size "${size}"
+    "${WORKLOAD}" --threads "${threads}" --duration "${duration}" --size "${size}" --pattern "${alloc_pattern}"
 }
 
 run_stage6_workload()
@@ -154,6 +165,7 @@ run_stage6_workload()
     local threads=$3
     local duration=$4
     local size=$5
+    local alloc_pattern=$6
 
     env -u LNHV1_SUBABLATION_STAGE \
         LNHV1_ABLATION_STAGE=6 \
@@ -161,7 +173,7 @@ run_stage6_workload()
         LNHV1_TRACKING_MODE="${tracking_mode}" \
         LNHV1_SOCKET_PATH="${SOCKET_PATH}" \
         LD_PRELOAD="${HOOK_LIB}" \
-        "${WORKLOAD}" --threads "${threads}" --duration "${duration}" --size "${size}"
+        "${WORKLOAD}" --threads "${threads}" --duration "${duration}" --size "${size}" --pattern "${alloc_pattern}"
 }
 
 detect_libc_path()
@@ -187,29 +199,35 @@ write_csv_row()
     local mode_name=$4
     local tracking_mode=$5
     local pid_tid_cache=$6
-    local threads=$7
-    local size=$8
-    local baseline_ops=$9
-    local with_probe_ops=${10}
-    local overhead_pct=${11}
-    local records_or_events=${12}
-    local malloc_events=${13}
-    local free_events=${14}
-    local alloc_records=${15}
-    local free_records=${16}
-    local unmatched_free=${17}
-    local ringbuf_drops=${18}
-    local observed_events=${19}
-    local probe_log=${20}
-    local consumer_log=${21}
+    local alloc_pattern=$7
+    local repeat_index=$8
+    local threads=$9
+    local size=${10}
+    local baseline_ops=${11}
+    local with_probe_ops=${12}
+    local overhead_pct=${13}
+    local records_or_events=${14}
+    local malloc_events=${15}
+    local calloc_events=${16}
+    local realloc_events=${17}
+    local free_events=${18}
+    local alloc_records=${19}
+    local free_records=${20}
+    local unmatched_free=${21}
+    local ringbuf_drops=${22}
+    local observed_events=${23}
+    local probe_log=${24}
+    local consumer_log=${25}
 
-    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
         "${row_kind}" \
         "${backend}" \
         "${mode}" \
         "${mode_name}" \
         "${tracking_mode}" \
         "${pid_tid_cache}" \
+        "${alloc_pattern}" \
+        "${repeat_index}" \
         "${threads}" \
         "${size}" \
         "${DURATION}" \
@@ -222,6 +240,8 @@ write_csv_row()
         "${overhead_pct}" \
         "${records_or_events}" \
         "${malloc_events}" \
+        "${calloc_events}" \
+        "${realloc_events}" \
         "${free_events}" \
         "${alloc_records}" \
         "${free_records}" \
@@ -240,11 +260,13 @@ record_ld_preload_stage6()
     local threads=$4
     local size=$5
     local baseline_ops=$6
-    local consumer_log="${LOG_DIR}/libbpf_compare_${mode}_${tracking_mode}_cache${pid_tid_cache}_t${threads}_s${size}_d${DURATION}.consumer.log"
+    local alloc_pattern=$7
+    local repeat_index=$8
+    local consumer_log="${LOG_DIR}/libbpf_compare_${mode}_${tracking_mode}_cache${pid_tid_cache}_${alloc_pattern}_r${repeat_index}_t${threads}_s${size}_d${DURATION}.consumer.log"
     local hook_output hook_line with_probe_ops overhead_pct wake_line records alloc free
 
     start_consumer "${consumer_log}"
-    hook_output=$(run_stage6_workload "${pid_tid_cache}" "${tracking_mode}" "${threads}" "${DURATION}" "${size}")
+    hook_output=$(run_stage6_workload "${pid_tid_cache}" "${tracking_mode}" "${threads}" "${DURATION}" "${size}" "${alloc_pattern}")
     sleep 1
     stop_consumer
 
@@ -257,11 +279,11 @@ record_ld_preload_stage6()
     free=$(extract_metric "${wake_line}" "free" "0")
 
     write_csv_row "ld_preload" "ld_preload" "${mode}" "stage6_notify" "${tracking_mode}" "${pid_tid_cache}" \
-        "${threads}" "${size}" "${baseline_ops}" "${with_probe_ops}" "${overhead_pct}" \
-        "${records}" "${alloc}" "${free}" "${alloc}" "${free}" 0 0 0 "" "${consumer_log}"
+        "${alloc_pattern}" "${repeat_index}" "${threads}" "${size}" "${baseline_ops}" "${with_probe_ops}" "${overhead_pct}" \
+        "${records}" "${alloc}" 0 0 "${free}" "${alloc}" "${free}" 0 0 0 "" "${consumer_log}"
 
-    printf '[ld_preload %s mode=%s cache=%s] threads=%s size=%s baseline_ops=%s with_probe_ops=%s overhead_pct=%s records=%s\n' \
-        "${mode}" "${tracking_mode}" "${pid_tid_cache}" "${threads}" "${size}" \
+    printf '[ld_preload %s mode=%s cache=%s pattern=%s repeat=%s] threads=%s size=%s baseline_ops=%s with_probe_ops=%s overhead_pct=%s records=%s\n' \
+        "${mode}" "${tracking_mode}" "${pid_tid_cache}" "${alloc_pattern}" "${repeat_index}" "${threads}" "${size}" \
         "${baseline_ops}" "${with_probe_ops}" "${overhead_pct}" "${records}"
 }
 
@@ -272,22 +294,26 @@ record_libbpf_mode()
     local size=$3
     local baseline_ops=$4
     local libc_path=$5
-    local probe_log="${LOG_DIR}/libbpf_compare_${mode}_t${threads}_s${size}_d${DURATION}.loader.log"
+    local alloc_pattern=$6
+    local repeat_index=$7
+    local probe_log="${LOG_DIR}/libbpf_compare_${mode}_${alloc_pattern}_r${repeat_index}_t${threads}_s${size}_d${DURATION}.loader.log"
     local probe_output probe_line with_probe_ops overhead_pct
-    local malloc_events free_events alloc_records free_records unmatched_free output_records ringbuf_drops observed_events records_or_events
+    local malloc_events calloc_events realloc_events free_events alloc_records free_records unmatched_free output_records ringbuf_drops observed_events records_or_events
 
     probe_output=$("${LOADER_BIN}" \
         --mode "${mode}" \
         --libc "${libc_path}" \
         --sample-interval "${SAMPLE_INTERVAL}" \
         --filter-size "${FILTER_SIZE}" \
-        -- "${WORKLOAD}" --threads "${threads}" --duration "${DURATION}" --size "${size}" 2>&1)
+        -- "${WORKLOAD}" --threads "${threads}" --duration "${DURATION}" --size "${size}" --pattern "${alloc_pattern}" 2>&1)
     printf '%s\n' "${probe_output}" >"${probe_log}"
 
     probe_line=$(printf '%s\n' "${probe_output}" | grep '^lnhv1_libbpf_summary' | tail -n1 || true)
     with_probe_ops=$(extract_metric "${probe_line}" "throughput_ops" "0")
     overhead_pct=$(compute_overhead_pct "${baseline_ops}" "${with_probe_ops}")
     malloc_events=$(extract_metric "${probe_line}" "malloc_calls" "0")
+    calloc_events=$(extract_metric "${probe_line}" "calloc_calls" "0")
+    realloc_events=$(extract_metric "${probe_line}" "realloc_calls" "0")
     free_events=$(extract_metric "${probe_line}" "free_calls" "0")
     alloc_records=$(extract_metric "${probe_line}" "alloc_records" "0")
     free_records=$(extract_metric "${probe_line}" "matched_frees" "0")
@@ -297,7 +323,7 @@ record_libbpf_mode()
     observed_events=$(extract_metric "${probe_line}" "observed_events" "0")
 
     case "${mode}" in
-        libbpf_count_only) records_or_events=$((malloc_events + free_events)) ;;
+        libbpf_count_only) records_or_events=$((malloc_events + calloc_events + realloc_events + free_events)) ;;
         libbpf_sample_filter) records_or_events=$(extract_metric "${probe_line}" "sampled_alloc_returns" "0") ;;
         libbpf_tracking) records_or_events=$((alloc_records + free_records)) ;;
         libbpf_ring_output) records_or_events="${output_records}" ;;
@@ -305,13 +331,13 @@ record_libbpf_mode()
     esac
 
     write_csv_row "ebpf_uprobe" "libbpf" "${mode}" "${mode}" "none" "n/a" \
-        "${threads}" "${size}" "${baseline_ops}" "${with_probe_ops}" "${overhead_pct}" \
-        "${records_or_events}" "${malloc_events}" "${free_events}" "${alloc_records}" \
+        "${alloc_pattern}" "${repeat_index}" "${threads}" "${size}" "${baseline_ops}" "${with_probe_ops}" "${overhead_pct}" \
+        "${records_or_events}" "${malloc_events}" "${calloc_events}" "${realloc_events}" "${free_events}" "${alloc_records}" \
         "${free_records}" "${unmatched_free}" "${ringbuf_drops}" "${observed_events}" "${probe_log}" ""
 
-    printf '[libbpf %s] threads=%s size=%s baseline_ops=%s with_probe_ops=%s overhead_pct=%s events=%s malloc=%s free=%s drops=%s observed=%s\n' \
-        "${mode}" "${threads}" "${size}" "${baseline_ops}" "${with_probe_ops}" \
-        "${overhead_pct}" "${records_or_events}" "${malloc_events}" "${free_events}" \
+    printf '[libbpf %s pattern=%s repeat=%s] threads=%s size=%s baseline_ops=%s with_probe_ops=%s overhead_pct=%s events=%s malloc=%s calloc=%s realloc=%s free=%s drops=%s observed=%s\n' \
+        "${mode}" "${alloc_pattern}" "${repeat_index}" "${threads}" "${size}" "${baseline_ops}" "${with_probe_ops}" \
+        "${overhead_pct}" "${records_or_events}" "${malloc_events}" "${calloc_events}" "${realloc_events}" "${free_events}" \
         "${ringbuf_drops}" "${observed_events}"
 }
 
@@ -336,6 +362,7 @@ fi
 
 IFS=',' read -r -a THREAD_VALUES <<< "${THREADS_LIST}"
 IFS=',' read -r -a SIZE_VALUES <<< "${SIZE_LIST}"
+IFS=',' read -r -a ALLOC_PATTERN_VALUES <<< "${ALLOC_PATTERN_LIST}"
 if [[ -z "${LIBBPF_MODE_LIST}" || "${LIBBPF_MODE_LIST}" == "none" ]]; then
     RUN_LIBBPF=0
     LIBBPF_MODE_VALUES=()
@@ -349,6 +376,18 @@ for mode in "${LIBBPF_MODE_VALUES[@]}"; do
         exit 1
     fi
 done
+
+for alloc_pattern in "${ALLOC_PATTERN_VALUES[@]}"; do
+    if ! validate_alloc_pattern "${alloc_pattern}"; then
+        echo "invalid allocator pattern: ${alloc_pattern}" >&2
+        exit 1
+    fi
+done
+
+if ! [[ "${REPEAT_COUNT}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "LNHV1_REPEAT must be a positive integer" >&2
+    exit 1
+fi
 
 if [[ "${RUN_LIBBPF}" == "1" && "${EUID}" -ne 0 ]]; then
     echo "libbpf uProbe loader requires root or equivalent BPF/uProbe capabilities; run this script with sudo on pink" >&2
@@ -365,27 +404,32 @@ if [[ "${RUN_LIBBPF}" == "1" ]]; then
 fi
 
 cat >"${CSV_PATH}" <<'EOF'
-row_kind,backend,mode,mode_name,tracking_mode,pid_tid_cache,threads,size,duration,flush_threshold,sample_interval,filter_size,blocked,baseline_ops,with_probe_ops,overhead_pct,records_or_events,malloc_events,free_events,alloc_records,free_records,unmatched_free,ringbuf_drops,observed_events,logs
+row_kind,backend,mode,mode_name,tracking_mode,pid_tid_cache,alloc_pattern,repeat_index,threads,size,duration,flush_threshold,sample_interval,filter_size,blocked,baseline_ops,with_probe_ops,overhead_pct,records_or_events,malloc_events,calloc_events,realloc_events,free_events,alloc_records,free_records,unmatched_free,ringbuf_drops,observed_events,logs
 EOF
 
-for threads in "${THREAD_VALUES[@]}"; do
-    for size in "${SIZE_VALUES[@]}"; do
-        baseline_output=$(run_workload "${threads}" "${DURATION}" "${size}")
-        baseline_line=$(printf '%s\n' "${baseline_output}" | tail -n1)
-        baseline_ops=$(extract_metric "${baseline_line}" "throughput_ops" "0")
-        write_csv_row "baseline" "none" "baseline_no_hook" "baseline_no_hook" "none" "n/a" \
-            "${threads}" "${size}" "${baseline_ops}" "${baseline_ops}" "0.0000" \
-            0 0 0 0 0 0 0 0 "" ""
-        printf '[baseline] threads=%s size=%s baseline_ops=%s\n' "${threads}" "${size}" "${baseline_ops}"
+for repeat_index in $(seq 1 "${REPEAT_COUNT}"); do
+    for alloc_pattern in "${ALLOC_PATTERN_VALUES[@]}"; do
+        for threads in "${THREAD_VALUES[@]}"; do
+            for size in "${SIZE_VALUES[@]}"; do
+                baseline_output=$(run_workload "${threads}" "${DURATION}" "${size}" "${alloc_pattern}")
+                baseline_line=$(printf '%s\n' "${baseline_output}" | tail -n1)
+                baseline_ops=$(extract_metric "${baseline_line}" "throughput_ops" "0")
+                write_csv_row "baseline" "none" "baseline_no_hook" "baseline_no_hook" "none" "n/a" \
+                    "${alloc_pattern}" "${repeat_index}" "${threads}" "${size}" "${baseline_ops}" "${baseline_ops}" "0.0000" \
+                    0 0 0 0 0 0 0 0 0 0 "" ""
+                printf '[baseline pattern=%s repeat=%s] threads=%s size=%s baseline_ops=%s\n' \
+                    "${alloc_pattern}" "${repeat_index}" "${threads}" "${size}" "${baseline_ops}"
 
-        record_ld_preload_stage6 "ld_preload_stage6_default" "global" 0 "${threads}" "${size}" "${baseline_ops}"
-        record_ld_preload_stage6 "ld_preload_stage6_optimized" "${OPT_TRACKING_MODE}" 1 "${threads}" "${size}" "${baseline_ops}"
+                record_ld_preload_stage6 "ld_preload_stage6_default" "global" 0 "${threads}" "${size}" "${baseline_ops}" "${alloc_pattern}" "${repeat_index}"
+                record_ld_preload_stage6 "ld_preload_stage6_optimized" "${OPT_TRACKING_MODE}" 1 "${threads}" "${size}" "${baseline_ops}" "${alloc_pattern}" "${repeat_index}"
 
-        if [[ "${RUN_LIBBPF}" == "1" ]]; then
-            for mode in "${LIBBPF_MODE_VALUES[@]}"; do
-                record_libbpf_mode "${mode}" "${threads}" "${size}" "${baseline_ops}" "${LIBC_PATH}"
+                if [[ "${RUN_LIBBPF}" == "1" ]]; then
+                    for mode in "${LIBBPF_MODE_VALUES[@]}"; do
+                        record_libbpf_mode "${mode}" "${threads}" "${size}" "${baseline_ops}" "${LIBC_PATH}" "${alloc_pattern}" "${repeat_index}"
+                    done
+                fi
             done
-        fi
+        done
     done
 done
 

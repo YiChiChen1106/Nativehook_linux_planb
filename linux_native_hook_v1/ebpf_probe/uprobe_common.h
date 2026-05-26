@@ -49,8 +49,12 @@ struct Lnhv1AllocKey {
 
 struct Lnhv1UprobeStats {
     lnhv1_u64 malloc_calls;
+    lnhv1_u64 calloc_calls;
+    lnhv1_u64 realloc_calls;
     lnhv1_u64 free_calls;
     lnhv1_u64 sampled_malloc_entries;
+    lnhv1_u64 sampled_calloc_entries;
+    lnhv1_u64 sampled_realloc_entries;
     lnhv1_u64 sampled_alloc_returns;
     lnhv1_u64 alloc_records;
     lnhv1_u64 matched_frees;

@@ -13,6 +13,12 @@ int main()
     static_assert(kLnhv1EventAlloc == 1, "alloc event type must be stable");
     static_assert(kLnhv1EventFree == 2, "free event type must be stable");
     static_assert(kLnhv1CommSize == 16, "BPF task comm size should match TASK_COMM_LEN");
+    static_assert(offsetof(Lnhv1UprobeStats, calloc_calls) >
+                      offsetof(Lnhv1UprobeStats, malloc_calls),
+                  "calloc calls should have a stable counter");
+    static_assert(offsetof(Lnhv1UprobeStats, realloc_calls) >
+                      offsetof(Lnhv1UprobeStats, calloc_calls),
+                  "realloc calls should have a stable counter");
 
     static_assert(offsetof(Lnhv1UprobeEvent, comm) % alignof(std::uint64_t) == 0,
                   "comm field should remain naturally aligned after integer metadata");
