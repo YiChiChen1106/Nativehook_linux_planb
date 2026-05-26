@@ -27,3 +27,33 @@ If the experiment later needs a production-style BPF ring buffer reader, install
 
 For non-root smoke testing of the baseline and LD_PRELOAD reference rows, set
 `LNHV1_EBPF_MODE_LIST=none`.
+
+## libbpf loader
+
+The libbpf path is the next-step implementation for structured eBPF/uProbe
+comparison. It keeps the bpftrace prototype intact and adds:
+
+- `uprobe_probe.bpf.c`: BPF-side uProbe program.
+- `uprobe_loader.cpp`: user-space loader that forks the workload, filters by
+  target process id, attaches `malloc/free` uprobes, drains ringbuf events, and
+  prints a single summary line.
+- `uprobe_common.h`: shared ABI for modes, counters, config, and ringbuf events.
+
+Build it explicitly on pink:
+
+```bash
+cmake -S . -B build -DLNHV1_ENABLE_LIBBPF=ON
+cmake --build build -j
+```
+
+Run the dedicated comparison script as root or with equivalent BPF/uProbe
+capabilities:
+
+```bash
+sudo LNHV1_DURATION=1 LNHV1_THREADS_LIST=1 \
+  LNHV1_LIBBPF_MODE_LIST=libbpf_count_only,libbpf_sample_filter,libbpf_tracking \
+  bash scripts/run_libbpf_uprobe_comparison.sh
+```
+
+The libbpf `libbpf_ring_output` mode uses a real BPF ring buffer. The older
+bpftrace `ebpf_ring_output` mode remains only an output-path proxy.
