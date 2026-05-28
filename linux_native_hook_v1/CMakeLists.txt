@@ -134,6 +134,9 @@ set_tests_properties(ablation_config_sub_ablation_stage_21 PROPERTIES
 add_test(NAME ablation_config_sub_ablation_stage_27 COMMAND ablation_config_test sub_ablation 27)
 set_tests_properties(ablation_config_sub_ablation_stage_27 PROPERTIES
     ENVIRONMENT "LNHV1_SUBABLATION_STAGE=27")
+add_test(NAME ablation_config_sub_ablation_stage_33 COMMAND ablation_config_test sub_ablation 33)
+set_tests_properties(ablation_config_sub_ablation_stage_33 PROPERTIES
+    ENVIRONMENT "LNHV1_SUBABLATION_STAGE=33")
 add_test(NAME ablation_config_tracking_mode_default COMMAND ablation_config_test tracking_mode 0)
 add_test(NAME ablation_config_tracking_mode_global COMMAND ablation_config_test tracking_mode 0)
 set_tests_properties(ablation_config_tracking_mode_global PROPERTIES

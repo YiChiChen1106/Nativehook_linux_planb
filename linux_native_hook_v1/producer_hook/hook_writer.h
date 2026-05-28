@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <pthread.h>
@@ -40,6 +41,7 @@ private:
 
     bool EnsureConnectedLocked();
     bool EnsureConnectedWithWriterLock();
+    bool EnsureConnectedForImpactSubAblation();
     bool HasConnectionWithWriterLock();
     bool ShouldRecordAllocLocked(size_t size);
     bool HasTrackedAllocLocked(uint64_t addr) const;
@@ -71,11 +73,16 @@ private:
     bool RecordWriteSubAblationAllocThreadLocal(
         bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
     bool RecordWriteSubAblationFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage);
+    bool RecordStage6WriterRingImpactAllocThreadLocal(
+        bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordStage6WriterRingImpactFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage);
     bool RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage);
     bool RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablation_stage);
     bool WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage);
+    bool WriteStage6WriterRingImpactLocked(const HookRecord& record, int sub_ablation_stage);
     void FillRecordForSubAblationLocked(
         HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage);
+    void FillStage6OptimizedRecord(HookRecord* record, HookEventType type, uint64_t addr, uint64_t size);
     void MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
@@ -97,6 +104,7 @@ private:
     int32_t filter_size_ = kDefaultFilterSize;
     bool is_blocked_ = false;
     const char* socket_path_ = nullptr;
+    std::atomic<bool> connected_fast_path_ {false};
     std::unordered_set<uint64_t> tracked_allocations_;
     std::array<TrackingShard, kTrackingShardCount> tracking_shards_;
     std::array<OwnershipShard, kTrackingShardCount> ownership_shards_;
