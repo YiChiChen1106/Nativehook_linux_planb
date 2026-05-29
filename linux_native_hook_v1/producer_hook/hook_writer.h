@@ -86,8 +86,13 @@ private:
     void MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
-    bool WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain);
+    bool WriteRecordLocked(
+        const HookRecord& record,
+        bool allow_notify,
+        bool self_drain,
+        bool* notify_after_unlock = nullptr);
     void NotifyLocked();
+    bool NotifyEventFd();
 
     pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
     int control_fd_ = -1;

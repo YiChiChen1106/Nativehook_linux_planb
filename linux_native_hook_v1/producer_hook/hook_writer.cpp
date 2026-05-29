@@ -1097,11 +1097,16 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
+    bool notify_after_unlock = false;
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
-        ablation_stage == kAblationStageRecordWrite);
+        ablation_stage == kAblationStageRecordWrite,
+        &notify_after_unlock);
     writer_lock.Unlock();
+    if (notify_after_unlock) {
+        NotifyEventFd();
+    }
     if (ret) {
         InsertTrackedAllocThreadLocal(use_fallback, record.addr);
     }
@@ -1143,14 +1148,24 @@ bool HookWriter::RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablatio
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
+    bool notify_after_unlock = false;
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,
-        ablation_stage == kAblationStageRecordWrite);
+        ablation_stage == kAblationStageRecordWrite,
+        &notify_after_unlock);
+    writer_lock.Unlock();
+    if (notify_after_unlock) {
+        NotifyEventFd();
+    }
     return ret;
 }
 
-bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain)
+bool HookWriter::WriteRecordLocked(
+    const HookRecord& record,
+    bool allow_notify,
+    bool self_drain,
+    bool* notify_after_unlock)
 {
     if (header_ == nullptr || records_ == nullptr) {
         return false;
@@ -1190,7 +1205,12 @@ bool HookWriter::WriteRecordLocked(const HookRecord& record, bool allow_notify, 
             WaitUntilDrainedLocked();
         }
     } else if (pending_count_ >= flush_threshold_) {
-        NotifyLocked();
+        if (notify_after_unlock != nullptr) {
+            pending_count_ = 0;
+            *notify_after_unlock = true;
+        } else {
+            NotifyLocked();
+        }
     }
     return true;
 }
@@ -1246,6 +1266,17 @@ void HookWriter::NotifyLocked()
     if (write(event_fd_, &one, sizeof(one)) == sizeof(one)) {
         pending_count_ = 0;
     }
+}
+
+bool HookWriter::NotifyEventFd()
+{
+    HotpathProfileScope profile_scope(HotpathProfileSegment::kNotify);
+
+    if (event_fd_ < 0) {
+        return false;
+    }
+    const uint64_t one = 1;
+    return write(event_fd_, &one, sizeof(one)) == sizeof(one);
 }
 
 bool HookWriter::RecordAlloc(void* ptr, size_t size)
@@ -1388,11 +1419,20 @@ void HookWriter::Flush()
     if (GetAblationStage() < kAblationStageNotify) {
         return;
     }
-    HotpathProfileMutexGuard writer_lock(
-        &mutex_,
-        HotpathProfileSegment::kWriterMutexWait,
-        HotpathProfileSegment::kWriterMutexHold);
-    NotifyLocked();
+    bool notify_after_unlock = false;
+    {
+        HotpathProfileMutexGuard writer_lock(
+            &mutex_,
+            HotpathProfileSegment::kWriterMutexWait,
+            HotpathProfileSegment::kWriterMutexHold);
+        if (event_fd_ >= 0 && pending_count_ > 0) {
+            pending_count_ = 0;
+            notify_after_unlock = true;
+        }
+    }
+    if (notify_after_unlock) {
+        NotifyEventFd();
+    }
 }
 
 }  // namespace linux_native_hook_v1
