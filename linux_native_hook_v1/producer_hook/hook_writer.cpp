@@ -1083,11 +1083,6 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
     }
 
     HookRecord record {};
-    HotpathProfileMutexGuard writer_lock(
-        &mutex_,
-        HotpathProfileSegment::kWriterMutexWait,
-        HotpathProfileSegment::kWriterMutexHold);
-    MaybeWriteThreadNameLocked(ablation_stage);
     const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
     record.addr = addr;
@@ -1097,6 +1092,12 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
+
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
+    MaybeWriteThreadNameLocked(ablation_stage);
     bool notify_after_unlock = false;
     const bool ret = WriteRecordLocked(
         record,
@@ -1134,11 +1135,6 @@ bool HookWriter::RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablatio
     }
 
     HookRecord record {};
-    HotpathProfileMutexGuard writer_lock(
-        &mutex_,
-        HotpathProfileSegment::kWriterMutexWait,
-        HotpathProfileSegment::kWriterMutexHold);
-    MaybeWriteThreadNameLocked(ablation_stage);
     const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kFree);
     record.addr = addr;
@@ -1148,6 +1144,12 @@ bool HookWriter::RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablatio
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
+
+    HotpathProfileMutexGuard writer_lock(
+        &mutex_,
+        HotpathProfileSegment::kWriterMutexWait,
+        HotpathProfileSegment::kWriterMutexHold);
+    MaybeWriteThreadNameLocked(ablation_stage);
     bool notify_after_unlock = false;
     const bool ret = WriteRecordLocked(
         record,
