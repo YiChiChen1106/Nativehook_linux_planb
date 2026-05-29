@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace linux_native_hook_v1 {
 
 constexpr int kAblationStageHookEntry = 1;
@@ -50,11 +52,13 @@ constexpr int kTrackingModeGlobal = 0;
 constexpr int kTrackingModeSharded = 1;
 constexpr int kTrackingModeThreadLocalFallback = 2;
 constexpr int kTrackingModeThreadLocalOnly = 3;
+constexpr uint32_t kMaxStage6BatchSize = 64;
 
 int GetAblationStage();
 int GetSubAblationStage();
 bool GetPidTidCacheEnabled();
 int GetTrackingMode();
 bool GetHotpathProfileEnabled();
+uint32_t GetStage6BatchSize();
 
 }  // namespace linux_native_hook_v1

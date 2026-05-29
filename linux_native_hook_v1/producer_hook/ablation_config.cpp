@@ -17,6 +17,8 @@ constexpr int kUnsetTrackingMode = -1;
 std::atomic<int> g_cached_tracking_mode {kUnsetTrackingMode};
 constexpr int kUnsetHotpathProfileEnabled = -1;
 std::atomic<int> g_cached_hotpath_profile_enabled {kUnsetHotpathProfileEnabled};
+constexpr int kUnsetStage6BatchSize = -1;
+std::atomic<int> g_cached_stage6_batch_size {kUnsetStage6BatchSize};
 
 int ParseAblationStageFromEnv()
 {
@@ -106,6 +108,22 @@ bool ParseHotpathProfileEnabledFromEnv()
     return value == 1;
 }
 
+uint32_t ParseStage6BatchSizeFromEnv()
+{
+    const char* text = std::getenv("LNHV1_STAGE6_BATCH_SIZE");
+    if (text == nullptr || text[0] == '\0') {
+        return 0;
+    }
+
+    char* end_ptr = nullptr;
+    const unsigned long value = std::strtoul(text, &end_ptr, 10);
+    if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0' || value > kMaxStage6BatchSize) {
+        return 0;
+    }
+
+    return static_cast<uint32_t>(value);
+}
+
 }  // namespace
 
 int GetAblationStage()
@@ -176,6 +194,20 @@ bool GetHotpathProfileEnabled()
     g_cached_hotpath_profile_enabled.compare_exchange_strong(
         expected, parsed_enabled, std::memory_order_release, std::memory_order_relaxed);
     return g_cached_hotpath_profile_enabled.load(std::memory_order_acquire) != 0;
+}
+
+uint32_t GetStage6BatchSize()
+{
+    int batch_size = g_cached_stage6_batch_size.load(std::memory_order_acquire);
+    if (batch_size != kUnsetStage6BatchSize) {
+        return static_cast<uint32_t>(batch_size);
+    }
+
+    const int parsed_batch_size = static_cast<int>(ParseStage6BatchSizeFromEnv());
+    int expected = kUnsetStage6BatchSize;
+    g_cached_stage6_batch_size.compare_exchange_strong(
+        expected, parsed_batch_size, std::memory_order_release, std::memory_order_relaxed);
+    return static_cast<uint32_t>(g_cached_stage6_batch_size.load(std::memory_order_acquire));
 }
 
 }  // namespace linux_native_hook_v1

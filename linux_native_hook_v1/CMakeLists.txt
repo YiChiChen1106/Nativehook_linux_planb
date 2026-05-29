@@ -163,6 +163,16 @@ set_tests_properties(ablation_config_hotpath_profile_enabled PROPERTIES
 add_test(NAME ablation_config_hotpath_profile_invalid COMMAND ablation_config_test hotpath_profile 0)
 set_tests_properties(ablation_config_hotpath_profile_invalid PROPERTIES
     ENVIRONMENT "LNHV1_HOTPATH_PROFILE=invalid")
+add_test(NAME ablation_config_stage6_batch_size_default COMMAND ablation_config_test stage6_batch_size 0)
+add_test(NAME ablation_config_stage6_batch_size_enabled COMMAND ablation_config_test stage6_batch_size 8)
+set_tests_properties(ablation_config_stage6_batch_size_enabled PROPERTIES
+    ENVIRONMENT "LNHV1_STAGE6_BATCH_SIZE=8")
+add_test(NAME ablation_config_stage6_batch_size_invalid COMMAND ablation_config_test stage6_batch_size 0)
+set_tests_properties(ablation_config_stage6_batch_size_invalid PROPERTIES
+    ENVIRONMENT "LNHV1_STAGE6_BATCH_SIZE=invalid")
+add_test(NAME ablation_config_stage6_batch_size_too_large COMMAND ablation_config_test stage6_batch_size 0)
+set_tests_properties(ablation_config_stage6_batch_size_too_large PROPERTIES
+    ENVIRONMENT "LNHV1_STAGE6_BATCH_SIZE=65")
 
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp

@@ -86,6 +86,14 @@ private:
     void MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
+    bool BufferStage6Record(const HookRecord& record, uint32_t batch_size);
+    bool FlushStage6Batch(bool allow_notify);
+    bool WriteRecordsLocked(
+        const HookRecord* records,
+        uint32_t record_count,
+        bool allow_notify,
+        bool self_drain,
+        bool* notify_after_unlock = nullptr);
     bool WriteRecordLocked(
         const HookRecord& record,
         bool allow_notify,

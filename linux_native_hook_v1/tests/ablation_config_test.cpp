@@ -1,12 +1,15 @@
 #include "producer_hook/ablation_config.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 
 int main(int argc, char** argv)
 {
     if (argc != 3) {
-        std::cerr << "usage: ablation_config_test <pid_tid_cache|sub_ablation|tracking_mode|hotpath_profile> <expected>\n";
+        std::cerr << "usage: ablation_config_test "
+                     "<pid_tid_cache|sub_ablation|tracking_mode|hotpath_profile|stage6_batch_size> "
+                     "<expected>\n";
         return 2;
     }
 
@@ -46,6 +49,16 @@ int main(int argc, char** argv)
         const bool actual = linux_native_hook_v1::GetHotpathProfileEnabled();
         if (actual != expected) {
             std::cerr << "expected GetHotpathProfileEnabled()=" << expected << " actual=" << actual << "\n";
+            return 1;
+        }
+        return 0;
+    }
+
+    if (mode == "stage6_batch_size") {
+        const uint32_t expected = static_cast<uint32_t>(std::strtoul(argv[2], nullptr, 10));
+        const uint32_t actual = linux_native_hook_v1::GetStage6BatchSize();
+        if (actual != expected) {
+            std::cerr << "expected GetStage6BatchSize()=" << expected << " actual=" << actual << "\n";
             return 1;
         }
         return 0;
