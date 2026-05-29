@@ -8,18 +8,31 @@
 namespace linux_native_hook_v1 {
 
 constexpr uint32_t kShmMagic = 0x4E484B31;  // "NHK1"
-constexpr uint32_t kShmVersion = 1;
+constexpr uint32_t kShmVersion = 2;
 
-struct ShmHeader {
+// Keep producer-written and consumer-written cursors on distinct cache lines.
+struct alignas(64) ShmHeader {
     uint32_t magic = kShmMagic;
     uint32_t version = kShmVersion;
     uint32_t capacity = 0;
     uint32_t record_size = sizeof(HookRecord);
-    uint32_t write_index = 0;
-    uint32_t read_index = 0;
-    uint32_t dropped = 0;
-    uint32_t reserved = 0;
+    uint32_t header_padding[12] = {};
+
+    alignas(64) uint32_t write_index = 0;
+    uint32_t write_padding[15] = {};
+
+    alignas(64) uint32_t read_index = 0;
+    uint32_t read_padding[15] = {};
+
+    alignas(64) uint32_t dropped = 0;
+    uint32_t dropped_padding[15] = {};
 };
+
+static_assert(alignof(ShmHeader) == 64, "ShmHeader must stay cache-line aligned");
+static_assert(offsetof(ShmHeader, write_index) == 64, "write_index must start on its own cache line");
+static_assert(offsetof(ShmHeader, read_index) == 128, "read_index must start on its own cache line");
+static_assert(offsetof(ShmHeader, dropped) == 192, "dropped must start on its own cache line");
+static_assert(sizeof(ShmHeader) == 256, "ShmHeader size must stay stable");
 
 inline size_t ShmBytesForCapacity(uint32_t capacity)
 {
