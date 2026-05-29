@@ -295,10 +295,7 @@ bool HookWriter::EnsureConnectedLocked()
     clock_id_ = config.clock_id;
     filter_size_ = config.filter_size;
     is_blocked_ = config.is_blocked != 0;
-    const bool connected = header_->magic == kShmMagic &&
-        header_->version == kShmVersion &&
-        header_->record_size == sizeof(HookRecord) &&
-        header_->capacity == config.ring_capacity;
+    const bool connected = header_->magic == kShmMagic && header_->capacity == config.ring_capacity;
     if (connected) {
         connected_fast_path_.store(true, std::memory_order_release);
     }

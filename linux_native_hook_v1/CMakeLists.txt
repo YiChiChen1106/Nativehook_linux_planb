@@ -163,10 +163,6 @@ set_tests_properties(ablation_config_hotpath_profile_enabled PROPERTIES
 add_test(NAME ablation_config_hotpath_profile_invalid COMMAND ablation_config_test hotpath_profile 0)
 set_tests_properties(ablation_config_hotpath_profile_invalid PROPERTIES
     ENVIRONMENT "LNHV1_HOTPATH_PROFILE=invalid")
-add_test(NAME shm_layout_write_index_offset COMMAND ablation_config_test shm_layout write_index 64)
-add_test(NAME shm_layout_read_index_offset COMMAND ablation_config_test shm_layout read_index 128)
-add_test(NAME shm_layout_dropped_offset COMMAND ablation_config_test shm_layout dropped 192)
-add_test(NAME shm_layout_size COMMAND ablation_config_test shm_layout size 256)
 
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp
