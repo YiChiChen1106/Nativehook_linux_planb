@@ -13,11 +13,30 @@ This handoff is for continuing the `native_hook` Plan B work without redoing the
 - Pushed remotes:
   - GitHub `origin/optimize/writer-ring-sharded-batch`
   - GitLab `gitlab/optimize/writer-ring-sharded-batch`
+- Clone URLs:
+  - GitHub SSH: `git@github.com:YiChiChen1106/Nativehook_linux_planb.git`
+  - GitLab HTTPS: `https://gitlab.youtune.tech/cychi/nativehook_linux_planb.git`
 - Server for formal performance numbers: `pink`
 - Pink working directory:
   `/mnt/hdd/users/cychi/research/native_hook_planB_v1/linux_native_hook_v1`
 
 The pink directory is the benchmark authority, but it is not the primary git workspace. Do code review, commits, and pushes from the local repo.
+
+If a new Linux agent cannot SSH to pink, it can still do local code review and edits. Do not treat local performance numbers as formal paper evidence. Formal benchmark numbers should be produced on pink or by an agent/machine that can reach pink.
+
+The current Codex desktop environment reached pink with:
+
+```powershell
+ssh -i "C:\Users\28100\.ssh\id_rsa" cychi@10.87.235.29
+```
+
+A Linux agent should test its own network/key access, for example:
+
+```bash
+ssh -i ~/.ssh/id_rsa cychi@10.87.235.29
+```
+
+Build/test dependencies are only needed on the machine that compiles locally. For local validation, install a normal C++ build toolchain: `git`, `cmake`, `make` or `ninja`, `gcc/g++` or `clang/clang++`, and standard Linux development headers. Pink already has the project build environment used for the recorded experiments.
 
 ## Current Baseline Assumptions
 
