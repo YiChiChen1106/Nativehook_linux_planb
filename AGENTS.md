@@ -183,6 +183,8 @@ Two optimizations from the prototype failed to port because this check wasn't do
 
 ## Conventions
 
+- **Before taking any action (editing files, running commands that modify the codebase or system),
+  explain what you plan to do in Chinese first and wait for explicit permission.**
 - Prefer editing existing files; don't create new files unless necessary
 - Don't add comments to code unless asked
 - Use `/home/eden/projects/native_hook_planb/` for development (WSL native, no CRLF issues)
