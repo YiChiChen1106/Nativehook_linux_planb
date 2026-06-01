@@ -56,6 +56,9 @@ sub_stage_name()
         31) printf 'stage6_opt_record_copy_no_publish' ;;
         32) printf 'stage6_opt_atomic_publish_no_notify' ;;
         33) printf 'stage6_opt_full_notify' ;;
+        34) printf 'stack_writer_write_only' ;;
+        35) printf 'stack_writer_flush_only' ;;
+        36) printf 'stack_writer_full' ;;
         *) printf 'unknown' ;;
     esac
 }
@@ -63,7 +66,7 @@ sub_stage_name()
 sub_stage_uses_consumer()
 {
     case "$1" in
-        30|31|32|33) return 0 ;;
+        30|31|32|33|36) return 0 ;;
         *) return 1 ;;
     esac
 }
