@@ -312,6 +312,8 @@ bool HookWriter::EnsureConnectedLocked()
     header_ = GetShmHeader(mapping_);
     records_ = GetShmRecords(mapping_);
     flush_threshold_ = config.flush_threshold == 0 ? kDefaultFlushThreshold : config.flush_threshold;
+    stack_writer_.SetSharedMemory(header_, records_, flush_threshold_);
+    stack_writer_.SetEventFd(event_fd_);
     sample_interval_ = config.sample_interval == 0 ? kDefaultSampleInterval : config.sample_interval;
     clock_id_ = config.clock_id;
     filter_size_ = config.filter_size;

@@ -10,6 +10,7 @@ find_package(Threads REQUIRED)
 
 add_library(linux_native_hook_common
     common/socket_fd.cpp
+    common/stack_writer.cpp
 )
 
 set_target_properties(linux_native_hook_common PROPERTIES
