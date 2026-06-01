@@ -8,13 +8,21 @@ Instructions for future agents continuing the `native_hook` Plan B optimization 
 - GitLab HTTPS: `https://gitlab.youtune.tech/cychi/nativehook_linux_planb.git`
 - Active branch: `optimize/writer-ring-sharded-batch`
 
+## Target Codebase (Real OpenHarmony)
+
+- Gitee upstream: `https://gitee.com/openharmony/developtools_profiler`
+- GitLab fork: `git@gitlab.youtune.tech:cychi/cyc_nativehook.git`
+- Target path: `device/plugins/native_hook/src/hook_client.cpp`
+- Build system: GN (not CMake), requires full OpenHarmony SDK
+- WSL clone (slow due to LFS): `/home/eden/projects/openharmony_nativehook/`
+
 ## Local Workspace (WSL)
 
-- Local root: `/mnt/f/codex_workspace/native_hook/`
-- Main repo: `/mnt/f/codex_workspace/native_hook/planb_project_page/`
-- Source tree: `/mnt/f/codex_workspace/native_hook/planb_project_page/linux_native_hook_v1/`
-- Build output (WSL): `/tmp/nh-build/`
-- CMake binary (pre-built): `/tmp/cmake-3.28.3-linux-x86_64/bin/cmake`
+- Plan B repo: `/home/eden/projects/native_hook_planb/`
+- Source tree: `linux_native_hook_v1/` (inside the repo)
+- Build output: `/tmp/nh-build/`
+- CMake: `/tmp/cmake-3.28.3-linux-x86_64/bin/cmake`
+- Old Windows-drive copy (avoid, CRLF issues): `/mnt/f/codex_workspace/native_hook/`
 
 ## Pink Server (benchmark authority)
 
@@ -31,7 +39,7 @@ Never treat local (WSL) performance numbers as formal results.
 ### Local (WSL) build
 
 ```bash
-/tmp/cmake-3.28.3-linux-x86_64/bin/cmake -S /mnt/f/codex_workspace/native_hook/planb_project_page/linux_native_hook_v1 -B /tmp/nh-build
+/tmp/cmake-3.28.3-linux-x86_64/bin/cmake -S /home/eden/projects/native_hook_planb/linux_native_hook_v1 -B /tmp/nh-build
 /tmp/cmake-3.28.3-linux-x86_64/bin/cmake --build /tmp/nh-build -j
 ```
 
@@ -104,25 +112,79 @@ Current result (batch64 vs no-batch):
 | 8 | 3.121s | 1.278s | 59.1% |
 | 16 | 3.408s | 1.340s | 60.7% |
 
-## Current Next Step: Batch Semantic Validation
+## Current Next Step: Realign Prototype with OpenHarmony Architecture
 
-Do NOT redo these without explicit request:
+1. Draw and maintain the hot-path mapping table (see Optimization Methodology section above)
+2. Refactor prototype to add missing structural equivalents:
+   - `stack_writer` layer (separate from `hook_writer`)
+   - `address_handler` equivalent (bitmap or hash-based tracking)
+   - `hook_socket_client` equivalent (connection management)
+3. After alignment, re-evaluate which Plan B optimizations are port-viable and benchmark on pink
+4. Coordinate with OpenHarmony dev team to build & benchmark the GitLab fork
+
+Do NOT redo without explicit request:
 - No new eBPF experiments
-- No pid/tid cache experiments
-- No tracking backend experiments
+- No pid/tid cache experiments (redundant — real code already does this)
+- No tracking backend experiments (no equivalent in real code)
 - No sample/filter sweeps
 
-The task is to validate that delayed batch publication does not break the semantic guarantees needed:
-1. Same-thread malloc/free order
-2. Cross-thread free handling under `thread_local_fallback`
-3. Thread-name record placement
-4. Dropped-record count
-5. Consumer termination and final flush behavior
+## Optimization Methodology: Prototype-Real Alignment
+
+To avoid wasting time on optimizations that work in the prototype but have no target in the real codebase,
+every proposed optimization MUST pass these three checks before any code is written:
+
+### Step 1: Draw a Hot-Path Mapping Table
+
+Map every step of the real `hook_malloc` hot path to its prototype equivalent (or mark "missing"):
+
+```
+                          Prototype            Real (hook_client.cpp)
+──────────────────────────────────────────────────────────────────
+ malloc/filter/sample     ✅ hook_writer       ✅ hook_malloc
+ re-entry guard           ✅ HookReentryGuard  ✅ __set_hook_flag
+ FpUnwind stack walk      ❌ missing           ✅ FpUnwind()
+ GetStackSize             ❌ missing           ✅ GetStackSize()
+ StackRawData fill        ⚠️ simplified        ✅ rawdata.{pid,tid,size,addr,ts}
+ record size calc         ⚠️ simplified        ✅ realSize by fpunwind mode
+ client lock              ❌ missing           ✅ weakClient.lock()
+ UpdateThreadName         ❌ missing           ✅ UpdateThreadName()
+ AddressHandler tracking  ❌ missing           ✅ AddAllocAddr()
+ SendStackWithPayload     ⚠️ hook_writer       ✅ SendStackWithPayload()
+ Flush/notify             ✅ WriteRecordLocked ✅ PrepareFlush/Flush
+```
+
+### Step 2: Re-Align the Prototype When Gaps Are Found
+
+When the mapping table shows `❌ missing` or `⚠️ simplified` entries, refactor the prototype
+before proposing new optimizations. The goal is **structural comparability**: same modules,
+same boundaries, even if simplified internally. Example: split `hook_writer.cpp` into layers
+matching `hook_client` + `stack_writer` + `address_handler`.
+
+### Step 3: Pre-Flight Check for Every Optimization
+
+Before writing any optimization code, answer three questions:
+
+1. **Which prototype module does this change?** (e.g. "the record-fill path in hook_writer")
+2. **Which real file/function does it map to?** (e.g. "hook_malloc in hook_client.cpp, lines 590-610")
+3. **Does the real code actually execute this path?** (must cite the exact line that proves it)
+
+If any question can't be answered with specific file:line references, do not proceed.
+
+### Lessons Learned
+
+Two optimizations from the prototype failed to port because this check wasn't done:
+
+- **PID/TID cache**: Real code already uses `pthread_getspecific` (TID) and `atomic load` (PID).
+  The optimization was correct in direction but redundant — real code had it before the prototype existed.
+
+- **thread_local_fallback tracking**: Prototype's producer-side alloc table (hash set + sharded fallback)
+  has no equivalent in the real code, where free records are sent raw to the daemon for server-side matching.
+  The optimization targeted a bottleneck that only existed in the simplified architecture.
 
 ## Conventions
 
 - Prefer editing existing files; don't create new files unless necessary
 - Don't add comments to code unless asked
-- CRLF files on the Windows drive may show false diffs in WSL git — ignore line-ending-only diffs
-- The standalone `/mnt/f/codex_workspace/native_hook/linux_native_hook_v1/` is an older copy — use `planb_project_page/linux_native_hook_v1/` for development
+- Use `/home/eden/projects/native_hook_planb/` for development (WSL native, no CRLF issues)
+- The old Windows-drive copy at `/mnt/f/codex_workspace/native_hook/` has CRLF corruption — do not use for development, only read from it if needed for reference
 - If copying shell scripts from Windows to pink, strip CR first: `perl -pi -e 's/\r$//' scripts/*.sh`
