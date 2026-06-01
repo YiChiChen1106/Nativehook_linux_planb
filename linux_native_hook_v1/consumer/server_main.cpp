@@ -58,7 +58,7 @@ void PrintUsage()
 {
     std::printf(
         "Usage: consumer [--socket path] [--shm name] [--capacity records] [--flush-threshold n] "
-        "[--sample-interval n] [--filter-size bytes] [--blocked]\n");
+        "[--sample-interval n] [--filter-size bytes] [--blocked] [--verbose]\n");
 }
 
 std::string BuildShmName(int32_t peer_pid)
@@ -82,6 +82,7 @@ int main(int argc, char* argv[])
     uint32_t sample_interval = kDefaultSampleInterval;
     int32_t filter_size = kDefaultFilterSize;
     uint8_t is_blocked = 0;
+    bool verbose = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -111,6 +112,8 @@ int main(int argc, char* argv[])
             }
         } else if (arg == "--blocked") {
             is_blocked = 1;
+        } else if (arg == "--verbose") {
+            verbose = true;
         } else {
             PrintUsage();
             return 1;
@@ -200,7 +203,7 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (!consumer.ConsumeAvailable(&metrics)) {
+        if (!consumer.ConsumeAvailable(&metrics, verbose)) {
             std::fprintf(stderr, "consumer failed to drain shared memory\n");
             break;
         }

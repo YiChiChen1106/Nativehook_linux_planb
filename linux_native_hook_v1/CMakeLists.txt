@@ -100,6 +100,22 @@ target_link_libraries(cross_thread_free_linux
         Threads::Threads
 )
 
+add_executable(batch_semantic_test
+    tests/batch_semantic_test.cpp
+)
+
+target_compile_options(batch_semantic_test
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
+target_link_libraries(batch_semantic_test
+    PRIVATE
+        Threads::Threads
+)
+
 add_executable(ablation_config_test
     tests/ablation_config_test.cpp
     producer_hook/ablation_config.cpp
