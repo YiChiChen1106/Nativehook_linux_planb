@@ -149,8 +149,13 @@ Map every step of the real `hook_malloc` hot path to its prototype equivalent (o
  client lock              ❌ missing             ✅ weakClient.lock()
  UpdateThreadName         ❌ missing             ✅ UpdateThreadName()
  AddressHandler tracking  ✅ address_handler.h   ✅ AddAllocAddr()
- StackWriter write/flush  ✅ stack_writer.cpp    ✅ WriteWithPayloadTimeout/Flush
- notify                   ✅ NotifyEventFd       ✅ PrepareFlush/Flush
+  StackWriter write/flush  ✅ stack_writer.cpp    ✅ WriteWithPayloadTimeout/Flush
+  notify                   ✅ NotifyEventFd       ✅ PrepareFlush/Flush
+
+StackWriter ablation sub-stages (34-36):
+  sub=34 write_only → ShareMemoryBlock::PutWithPayloadTimeout cost
+  sub=35 flush_only → write + EventNotifier::Post cost
+  sub=36 full       → complete SendStackWithPayload chain
 ```
 
 ### Step 2: Re-Align the Prototype When Gaps Are Found
