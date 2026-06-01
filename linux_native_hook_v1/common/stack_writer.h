@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <pthread.h>
 
 #include "common/shm_layout.h"
 
@@ -9,7 +10,15 @@ namespace linux_native_hook_v1 {
 
 class StackWriter {
 public:
-    StackWriter() = default;
+    StackWriter()
+    {
+        pthread_mutex_init(&inner_mutex_, nullptr);
+    }
+
+    ~StackWriter()
+    {
+        pthread_mutex_destroy(&inner_mutex_);
+    }
 
     void SetSharedMemory(ShmHeader* header, HookRecord* records, uint32_t flush_threshold)
     {
@@ -40,7 +49,11 @@ public:
 
     uint32_t pending_count() const { return pending_count_; }
 
+    void Lock() { pthread_mutex_lock(&inner_mutex_); }
+    void Unlock() { pthread_mutex_unlock(&inner_mutex_); }
+
 private:
+    pthread_mutex_t inner_mutex_;
     ShmHeader* header_ = nullptr;
     HookRecord* records_ = nullptr;
     int event_fd_ = -1;

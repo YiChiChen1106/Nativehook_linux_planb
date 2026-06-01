@@ -130,6 +130,12 @@ bool IsStage6WriterRingImpactSubStage(int sub_ablation_stage)
         sub_ablation_stage <= kStage6WriterRingSubStageAtomicPublishNoNotify;
 }
 
+bool IsStackWriterSubAblationStage(int sub_ablation_stage)
+{
+    return sub_ablation_stage >= kStackWriterSubStageWriteOnly &&
+        sub_ablation_stage <= kStackWriterSubStageFull;
+}
+
 bool Stage6WriterRingImpactNeedsConnection(int sub_ablation_stage)
 {
     return sub_ablation_stage >= kStage6WriterRingSubStageRingIndexCheck &&
@@ -1080,6 +1086,48 @@ bool HookWriter::RecordStage6WriterRingImpactFreeThreadLocal(
     return WriteStage6WriterRingImpactLocked(record, sub_ablation_stage);
 }
 
+bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
+    bool use_fallback, void* ptr, size_t size, int sub_ablation_stage)
+{
+    if (!EnsureConnectedForImpactSubAblation()) {
+        return false;
+    }
+    if (!ShouldRecordAllocLocked(size)) {
+        return false;
+    }
+
+    const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    HookRecord record {};
+    FillStage6OptimizedRecord(&record, HookEventType::kMalloc, addr, static_cast<uint64_t>(size));
+    InsertTrackedAllocThreadLocal(use_fallback, addr);
+
+    const uint64_t write_start = HotpathProfileStart();
+
+    if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
+        stack_writer_.Lock();
+        stack_writer_.Write(&record, 1, false);
+        if (sub_ablation_stage <= kStackWriterSubStageWriteOnly) {
+            stack_writer_.Unlock();
+            HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
+            return true;
+        }
+        HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
+        if (sub_ablation_stage == kStackWriterSubStageFlushOnly) {
+            stack_writer_.Unlock();
+            const uint64_t flush_start = HotpathProfileStart();
+            stack_writer_.FlushEventFd();
+            HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
+            return true;
+        }
+        const uint64_t flush_start = HotpathProfileStart();
+        stack_writer_.Flush();
+        stack_writer_.Unlock();
+        HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
+    }
+
+    return true;
+}
+
 bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage)
 {
     const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
@@ -1091,6 +1139,9 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
     const int sub_ablation_stage = GetSubAblationStage();
     if (ablation_stage == kAblationStageNotify && IsStage6WriterRingImpactSubStage(sub_ablation_stage)) {
         return RecordStage6WriterRingImpactAllocThreadLocal(use_fallback, ptr, size, sub_ablation_stage);
+    }
+    if (ablation_stage == kAblationStageNotify && IsStackWriterSubAblationStage(sub_ablation_stage)) {
+        return RecordStackWriterSubAblationAllocThreadLocal(use_fallback, ptr, size, sub_ablation_stage);
     }
 
     if (!EnsureConnectedWithWriterLock()) {

@@ -46,7 +46,11 @@ constexpr int kStage6WriterRingSubStageRingIndexCheck = 30;
 constexpr int kStage6WriterRingSubStageRecordCopyNoPublish = 31;
 constexpr int kStage6WriterRingSubStageAtomicPublishNoNotify = 32;
 constexpr int kStage6WriterRingSubStageFullNotify = 33;
-constexpr int kMaxSubAblationStage = kStage6WriterRingSubStageFullNotify;
+
+constexpr int kStackWriterSubStageWriteOnly = 34;
+constexpr int kStackWriterSubStageFlushOnly = 35;
+constexpr int kStackWriterSubStageFull = 36;
+constexpr int kMaxSubAblationStage = kStackWriterSubStageFull;
 
 constexpr int kTrackingModeGlobal = 0;
 constexpr int kTrackingModeSharded = 1;
