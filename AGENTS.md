@@ -138,19 +138,19 @@ every proposed optimization MUST pass these three checks before any code is writ
 Map every step of the real `hook_malloc` hot path to its prototype equivalent (or mark "missing"):
 
 ```
-                          Prototype            Real (hook_client.cpp)
+                          Prototype              Real (hook_client.cpp)
 ──────────────────────────────────────────────────────────────────
- malloc/filter/sample     ✅ hook_writer       ✅ hook_malloc
- re-entry guard           ✅ HookReentryGuard  ✅ __set_hook_flag
- FpUnwind stack walk      ❌ missing           ✅ FpUnwind()
- GetStackSize             ❌ missing           ✅ GetStackSize()
- StackRawData fill        ⚠️ simplified        ✅ rawdata.{pid,tid,size,addr,ts}
- record size calc         ⚠️ simplified        ✅ realSize by fpunwind mode
- client lock              ❌ missing           ✅ weakClient.lock()
- UpdateThreadName         ❌ missing           ✅ UpdateThreadName()
- AddressHandler tracking  ❌ missing           ✅ AddAllocAddr()
- SendStackWithPayload     ⚠️ hook_writer       ✅ SendStackWithPayload()
- Flush/notify             ✅ WriteRecordLocked ✅ PrepareFlush/Flush
+ malloc/filter/sample     ✅ hook_writer         ✅ hook_malloc
+ re-entry guard           ✅ HookReentryGuard    ✅ __set_hook_flag
+ FpUnwind stack walk      ❌ missing             ✅ FpUnwind()
+ GetStackSize             ❌ missing             ✅ GetStackSize()
+ StackRawData fill        ⚠️ simplified          ✅ rawdata.{pid,tid,size,addr,ts}
+ record size calc         ⚠️ simplified          ✅ realSize by fpunwind mode
+ client lock              ❌ missing             ✅ weakClient.lock()
+ UpdateThreadName         ❌ missing             ✅ UpdateThreadName()
+ AddressHandler tracking  ✅ address_handler.h   ✅ AddAllocAddr()
+ StackWriter write/flush  ✅ stack_writer.cpp    ✅ WriteWithPayloadTimeout/Flush
+ notify                   ✅ NotifyEventFd       ✅ PrepareFlush/Flush
 ```
 
 ### Step 2: Re-Align the Prototype When Gaps Are Found
