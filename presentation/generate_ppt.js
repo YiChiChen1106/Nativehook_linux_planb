@@ -80,10 +80,11 @@ function big(slide, val, sub, x, y) {
 }
 
 function card(slide, tag, title, body, x, y, w, h, color) {
-  slide.addShape(pptx.ShapeType.roundRect, { x, y, w, h, fill: { color: color + "40" }, rectRadius: 0.1, line: { color: color, width: 1.2, dashType: "solid" } });
-  slide.addText(tag, { x: x + 0.15, y: y + 0.1, w: 1.5, h: 0.25, fontSize: 8, bold: true, color: color, fontFace: "Consolas" });
-  slide.addText(title, { x: x + 0.15, y: y + 0.4, w: w - 0.3, h: 0.4, fontSize: 13, bold: true, color: C.ink });
-  slide.addText(body, { x: x + 0.15, y: y + 0.9, w: w - 0.3, h: h - 1.1, fontSize: 10, color: C.dim, lineSpacing: 18 });
+  slide.addShape(pptx.ShapeType.roundRect, { x, y, w, h, fill: { color: C.white }, rectRadius: 0.1, line: { color: color, width: 1.2, dashType: "solid" } });
+  slide.addShape(pptx.ShapeType.rect, { x: x, y: y, w: w, h: 3/72, fill: { color: color } });
+  slide.addText(tag, { x: x + 0.15, y: y + 0.15, w: 1.5, h: 0.25, fontSize: 8, bold: true, color: color, fontFace: "Consolas" });
+  slide.addText(title, { x: x + 0.15, y: y + 0.45, w: w - 0.3, h: 0.4, fontSize: 13, bold: true, color: C.ink });
+  slide.addText(body, { x: x + 0.15, y: y + 0.95, w: w - 0.3, h: h - 1.15, fontSize: 10, color: C.dim, lineSpacing: 18 });
 }
 
 // === SLIDES ===
