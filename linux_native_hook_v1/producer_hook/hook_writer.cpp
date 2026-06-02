@@ -1120,8 +1120,8 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
             return true;
         }
         const uint64_t flush_start = HotpathProfileStart();
-        stack_writer_.Flush();
         stack_writer_.Unlock();
+        stack_writer_.Flush();
         HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
     }
 
