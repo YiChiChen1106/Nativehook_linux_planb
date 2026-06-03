@@ -256,7 +256,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   // ===== Summary row =====
   rect(0.3, 6.2, 12.6, 0.65, C.orangeBg, "", 0, W);
   s.addText("即：100万次锁操作 → 1.5万次锁操作    100万次原子索引发布 → 1.5万次    ~5万次事件通知 → ~780次", {
-    x: 0.5, y: 6.2, w: 12.2, h: 0.65, fontSize: 13, color: W, align: "center", valign: "middle", bold: true,
+    x: 0.5, y: 6.2, w: 12.2, h: 0.65, fontSize: 13, color: C.ink, align: "center", valign: "middle", bold: true,
   });
 })();
 
@@ -342,9 +342,9 @@ function card(slide, tag, title, body, x, y, w, h, color) {
     ["操作", "原型 (Plan B)", "真实代码"],
     ["malloc入口", "hook_writer", "hook_malloc"],
     ["重入保护", "HookReentryGuard", "__set_hook_flag"],
-    ["地址追踪", "address_handler.h", "AddAllocAddr()"],
-    ["写共享内存", "stack_writer.cpp", "WriteWithPayloadTimeout"],
-    ["通知消费者", "stack_writer::Flush", "Flush→EventNotifier::Post"],
+    ["地址追踪", "address_handler.h  [新增]", "AddAllocAddr()"],
+    ["写共享内存", "stack_writer.cpp  [新增]", "WriteWithPayloadTimeout"],
+    ["通知消费者", "stack_writer::Flush  [新增]", "Flush→EventNotifier::Post"],
   ];
 
   const n = 3;
