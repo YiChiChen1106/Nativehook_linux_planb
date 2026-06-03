@@ -152,20 +152,15 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 3, "Producer 端三项优化", "逐级降低 per-record 共享路径开销");
+  hdr(s, 3, "Producer 端两项优化", "缩短 per-record 共享路径开销");
 
   [
-    { n: "01", t: "Notify Outside Writer Mutex", c: C.cyan, lines: [
-      "eventfd 写入移出 writer 锁临界区",
-      "8T: 3.12s→2.85s    16T: 3.41s→2.98s",
-      "减少持锁时间，多线程有效",
-    ]},
-    { n: "02", t: "Record Fill Outside Writer Mutex", c: C.blue, lines: [
+    { n: "01", t: "Record Fill Outside Writer Mutex", c: C.blue, lines: [
       "record 元数据填充移出锁",
       "4T: 3.51s→2.72s (22.5%)    8T: 3.64s→3.12s (14.3%)",
       "缩短临界区 = 减少竞争窗口",
     ]},
-    { n: "★", t: "Stage 6  Batch  Publish", c: C.orange, lines: [
+    { n: "02", t: "Stage 6  Batch  Publish", c: C.orange, lines: [
       "per-thread buffer → 一次拿锁批量写 → 一次 atomic publish → 一次 notify",
       "1T: 1.55s→1.22s    8T: 3.12s→1.28s    16T: 3.41s→1.34s",
       "env gate: LNHV1_STAGE6_BATCH_SIZE = <1..64>",
