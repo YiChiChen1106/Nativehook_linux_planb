@@ -164,13 +164,12 @@ function card(slide, tag, title, body, x, y, w, h, color) {
       "核心收益: 缩短锁内工作量 → 减少其他线程排队等锁时间",
     ]},
     { n: "02", t: "Stage 6  Batch  Publish", c: C.orange, lines: [
-      "per-thread buffer (array<HookRecord, 65>) + counter, env: LNHV1_STAGE6_BATCH_SIZE=1~64",
-      "BufferStage6Record: 每 record 加到 buffer; count >= batch_size 时触发 FlushStage6Batch",
-      "Flush 内: 拿一次 mutex_ → WriteRecordsLocked(批量拷贝到 ring) → 一次 atomic write_index → 一次 PrepareFlush",
-      "原来 100万条 = 100万次拿锁 + 100万次 atomic publish + ~5万次 eventfd",
-      "batch64 ↓ = ~1.5万次拿锁 + ~1.5万次 atomic publish + ~780次 eventfd",
-      "1T: 1.55s→1.22s    8T: 3.12s→1.28s    16T: 3.41s→1.34s",
-      "线程退出时 Stage6RecordBatch 析构函数自动 Flush 排空残留",
+      "per-thread buffer (array<HookRecord, 65>) + counter",
+      "BufferStage6Record 累积 record; count >= batch_size → FlushStage6Batch",
+      "Flush 内: 拿一次锁 → 批量写 ring → 一次 atomic publish → 一次 notify",
+      "析构函数在线程退出时自动 Flush 残留",
+      "env gate: LNHV1_STAGE6_BATCH_SIZE=1~64（默认0=关闭）",
+      "效果: 1T 1.55s→1.22s    8T 3.12s→1.28s    16T 3.41s→1.34s",
     ]},
   ].forEach((o, i) => {
     const y = 1.4 + i * 2.7;
