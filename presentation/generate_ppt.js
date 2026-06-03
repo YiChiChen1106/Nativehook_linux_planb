@@ -118,7 +118,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
     { tag: "RESOLVED", c: C.green, t: "▸ \"4T比1T多1.8s\"", b: "ring共享状态竞争\n→ batch解决后 4T: 2.72s → 0.86s" },
     { tag: "UPGRADED", c: C.blue, t: "▸ \"跑一下perf\"", b: "ablation替代perf\n→ sub-stage 34/35 拆到模块内部" },
     { tag: "COMPLETED", c: C.orange, t: "▸ \"fork Gitee→GitLab\"", b: "5个核心函数全加batch\n→ gitlab.youtune.tech/cychi/cyc_nativehook" },
-    { tag: "EXPLAINED", c: C.purple, t: "▸ \"4T eBPF异常快\"", b: "固定总负载指标，多线程并行就该比单线程快\neBPF单线程开销重，4T并行优势体现\n本轮聚焦producer端，eBPF暂停" },
+    { tag: "VERIFIED", c: C.orange, t: "▸ \"4T eBPF异常快\"", b: "高线程验证: 8T eBPF=1.71s vs LD=4.27s (2.5x)\n16T eBPF=1.47s vs LD=4.39s (3.0x)\neBPF per-CPU ringbuf 无共享竞争 → 详见 Slide 6" },
   ];
 
   cards.forEach((c, i) => {
@@ -199,11 +199,35 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 0.5, 4.8, 12, 1.5, 11);
 })();
 
-// 6 — 模块级
+// 6 — eBPF 高线程
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 5, "StackWriter 模块级瓶颈定位", "sub-stage 34/35  ·  ring write 内锁 vs eventfd 开销分离");
+  hdr(s, 6, "eBPF 高线程验证 — 反超 LD_PRELOAD", "per-CPU ringbuf 无共享竞争，高线程下优势显著");
+
+  tbl(s, [
+    ["Threads", "Run", "eBPF uprobe", "LD_PRELOAD optimized", "eBPF 快多少"],
+    ["8", "r1", "1.76s", "4.19s", "2.4x"],
+    ["8", "r2", "1.67s", "4.27s", "2.6x"],
+    ["8", "r3", "1.71s", "4.34s", "2.5x"],
+    ["16", "r1", "1.47s", "4.38s", "3.0x"],
+    ["16", "r2", "1.47s", "4.39s", "3.0x"],
+    ["16", "r3", "1.48s", "4.40s", "3.0x"],
+  ], 0.3, 1.3, 12.6);
+
+  blt(s, [
+    "上次组会: 4T eBPF 比 LD_PRELOAD 慢 0.18s，结论是\"不适合替代\"",
+    "新增 8T/16T 实验 (三次重复): eBPF 全面反超，16T 下快 3 倍",
+    "原因: eBPF per-CPU ringbuf 无共享锁竞争，而 LD_PRELOAD batch 仍有 per-batch 锁",
+    "结论: 低线程 LD_PRELOAD 更好，高线程 eBPF 天花板更高",
+  ], 0.5, 4.8, 12, 2.2, 13);
+})();
+
+// 7 — 模块级
+(() => {
+  const s = pptx.addSlide();
+  s.background = { fill: C.bg };
+  hdr(s, 7, "StackWriter 模块级瓶颈定位", "sub-stage 34/35  ·  ring write 内锁 vs eventfd 开销分离");
 
   tbl(s, [
     ["Sub-stage", "测量内容", "1T", "4T", "8T", "16T"],
@@ -223,7 +247,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 6, "Prototype  ↔  OpenHarmony  架构对齐", "热路径模块映射");
+  hdr(s, 8, "Prototype  ↔  OpenHarmony  架构对齐", "热路径模块映射");
 
   tbl(s, [
     ["热路径操作", "Prototype (Plan B)", "OpenHarmony (hook_client.cpp)"],
@@ -240,7 +264,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 7, "OpenHarmony Fork — 优化移植状态", "gitlab.youtune.tech/cychi/cyc_nativehook");
+  hdr(s, 9, "OpenHarmony Fork — 优化移植状态", "gitlab.youtune.tech/cychi/cyc_nativehook");
 
   tbl(s, [
     ["函数", "调用场景", "record-fill-before-lock", "batch publish"],
@@ -260,7 +284,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 8, "经验教训 & 三步预检方法", "两个无效优化如何发生，以及后续怎么避免");
+  hdr(s, 10, "经验教训 & 三步预检方法", "两个无效优化如何发生，以及后续怎么避免");
 
   // Left
   s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y: 1.35, w: 5.85, h: 4.5, fill: { color: C.pinkBg }, rectRadius: 0.1, line: { color: C.pink, width: 1.2 } });
@@ -298,12 +322,12 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 9, "Next Steps");
+  hdr(s, 11, "Next Steps");
 
   [
     { n: "01", t: "Producer 端继续拆解", d: "consumer 侧 profiling，完善 sub-stage 36 完整链测量数据", c: C.blue },
     { n: "02", t: "真实代码验证", d: "等待 OpenHarmony 编译环境 → GitLab fork benchmark → 合 master", c: C.green },
-    { n: "03", t: "eBPF 线（如需继续）", d: "上次遗留: 4T 异常快 → 更高线程数重复实验确认", c: C.purple },
+    { n: "03", t: "eBPF 高线程验证结论", d: "8T/16T 已确认：eBPF per-CPU ringbuf 反超 LD_PRELOAD 2.5~3x\n如需进一步：评估 producer 端 eBPF 替代方案", c: C.purple },
   ].forEach((it, i) => {
     const y = 1.5 + i * 1.85;
     s.addShape(pptx.ShapeType.roundRect, { x: 1.0, y, w: 11.3, h: 1.5, fill: { color: C.white }, rectRadius: 0.1, line: { color: it.c, width: 1.5 } });
