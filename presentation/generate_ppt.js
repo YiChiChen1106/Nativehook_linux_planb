@@ -118,7 +118,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
     { tag: "RESOLVED", c: C.green, t: "▸ \"4T比1T多1.8s\"", b: "ring共享状态竞争\n→ batch解决后 4T: 2.72s → 0.86s" },
     { tag: "UPGRADED", c: C.blue, t: "▸ \"跑一下perf\"", b: "ablation替代perf\n→ sub-stage 34/35 拆到模块内部" },
     { tag: "COMPLETED", c: C.orange, t: "▸ \"fork Gitee→GitLab\"", b: "5个核心函数全加batch\n→ gitlab.youtune.tech/cychi/cyc_nativehook" },
-    { tag: "PAUSED", c: C.purple, t: "▸ \"4T eBPF异常快\"", b: "本轮聚焦producer端\neBPF线暂停，待后续" },
+    { tag: "EXPLAINED", c: C.purple, t: "▸ \"4T eBPF异常快\"", b: "固定总负载指标，多线程并行就该比单线程快\neBPF单线程开销重，4T并行优势体现\n本轮聚焦producer端，eBPF暂停" },
   ];
 
   cards.forEach((c, i) => {
