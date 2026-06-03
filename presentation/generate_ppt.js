@@ -131,7 +131,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 3, "Writer/Ring Impact 拆解实验", "sub-stage 28~33 逐段测量，固定100万次malloc/free pair");
+  hdr(s, 3, "写入器/环形缓冲区 逐段拆解实验", "sub-stage 28~33 逐段测量，固定100万次malloc/free pair");
 
   tbl(s, [
     ["Sub-stage", "测量内容", "1T", "4T", "8T", "16T"],
@@ -152,22 +152,22 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 4, "Producer 端两项优化", "缩短 per-record 共享路径开销");
+  hdr(s, 4, "生产者端 两项优化", "缩短 per-record 共享路径开销");
 
   [
-    { n: "01", t: "Record Fill Outside Writer Mutex", c: C.blue, lines: [
-      "移出锁的操作: pid, tid, timestamp, type, size, addr 填充 + thread-name 更新",
-      "这些操作不碰共享状态——pid/tid 是 thread-local cache，timestamp 是 clock_gettime",
-      "原来锁内做: lock → fill → write_ring → notify → unlock",
-      "优化后: fill → lock → write_ring → notify → unlock",
+    { n: "01", t: "记录填充移出写入锁", c: C.blue, lines: [
+      "移出锁的操作: 进程ID、线程ID、时间戳、类型、大小、地址 + 线程名更新",
+      "这些字段不碰共享状态——进程/线程ID缓存于线程本地，时间戳直接系统调用",
+      "原来: 拿锁 → 填充字段 → 写共享内存 → 通知 → 放锁",
+      "优化后: 填充字段 → 拿锁 → 写共享内存 → 通知 → 放锁",
       "4T: 3.51s→2.72s (22.5%)    8T: 3.64s→3.12s (14.3%)",
-      "核心收益: 缩短锁内工作量 → 减少其他线程排队等锁时间",
+      "核心收益: 缩短临界区 → 减少其他线程等锁时间",
     ]},
-    { n: "02", t: "Stage 6  Batch  Publish", c: C.orange, lines: [
-      "per-thread buffer (array<HookRecord, 65>) + counter",
-      "BufferStage6Record 累积 record; count >= batch_size → FlushStage6Batch",
-      "Flush 内: 拿一次锁 → 批量写 ring → 一次 atomic publish → 一次 notify",
-      "析构函数在线程退出时自动 Flush 残留",
+    { n: "02", t: "Stage 6  批量发布", c: C.orange, lines: [
+      "线程本地缓冲区 (固定大小数组 + 计数器)",
+      "每条记录先进入缓冲区; 攒满批次大小 → 触发批量排空",
+      "排空时: 拿一次锁 → 批量写共享内存 → 一次原子更新索引 → 一次事件通知",
+      "线程退出时析构函数自动排空残留",
       "env gate: LNHV1_STAGE6_BATCH_SIZE=1~64（默认0=关闭）",
       "效果: 1T 1.55s→1.22s    8T 3.12s→1.28s    16T 3.41s→1.34s",
     ]},
@@ -185,7 +185,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 5, "Batch Publish — 工作原理", "Per-Record  vs  Per-Batch");
+  hdr(s, 5, "批量发布 — 工作原理", "逐记录  vs  逐批次");
 
   const L = C.line, B = C.blue, G = C.green, O = C.orange, W = C.white, D = C.dim, I = C.ink;
 
@@ -201,7 +201,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   }
 
   // === LEFT: Per-Record (before) ===
-  s.addText("Per-Record（优化前）", { x: 0.3, y: 1.25, w: 5.8, h: 0.35, fontSize: 13, bold: true, color: I });
+  s.addText("逐记录模式（优化前）", { x: 0.3, y: 1.25, w: 5.8, h: 0.35, fontSize: 13, bold: true, color: I });
   const ry = 1.75;
   for (let i = 0; i < 3; i++) {
     const y = ry + i * 0.75;
@@ -214,10 +214,10 @@ function card(slide, tag, title, body, x, y, w, h, color) {
     rect(4.1, y, 0.9, 0.45, "D0D8E8", "notify", 8, D);
   }
   rect(0.3, ry + 3 * 0.75 + 0.15, 1.0, 0.35, "F0F0F8", "...", 9, D);
-  rect(0.3, ry + 3 * 0.75 + 0.6, 4.7, 0.35, C.blueBg, "record → 每 percord 走一遍拿锁、写ring、通知", 9, D);
+  rect(0.3, ry + 3 * 0.75 + 0.6, 4.7, 0.35, C.blueBg, "record → 每条记录走一遍拿锁、写共享内存、通知", 9, D);
 
   // === RIGHT: Per-Batch (after) ===
-  s.addText("Per-Batch（batch=64 优化后）", { x: 7.2, y: 1.25, w: 5.8, h: 0.35, fontSize: 13, bold: true, color: I });
+  s.addText("逐批次模式（batch=64 优化后）", { x: 7.2, y: 1.25, w: 5.8, h: 0.35, fontSize: 13, bold: true, color: I });
   const ry2 = 1.75;
   for (let i = 0; i < 3; i++) {
     rect(7.2, ry2 + i * 0.75, 1.0, 0.45, G, "record " + (i+1), 9, W);
@@ -255,7 +255,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 
   // ===== Summary row =====
   rect(0.3, 6.2, 12.6, 0.65, C.orangeBg, "", 0, W);
-  s.addText("即：100万次锁操作 → 1.5万次锁操作    100万次 atomic publish → 1.5万次    ~5万次 eventfd → ~780次", {
+  s.addText("即：100万次锁操作 → 1.5万次锁操作    100万次原子索引发布 → 1.5万次    ~5万次事件通知 → ~780次", {
     x: 0.5, y: 6.2, w: 12.2, h: 0.65, fontSize: 13, color: W, align: "center", valign: "middle", bold: true,
   });
 })();
@@ -264,7 +264,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 6, "Batch Publish — Pink 验证数据", "100万次固定负载  ·  Stage 6 full notify");
+  hdr(s, 6, "批量发布 — 服务器验证数据", "100万次固定负载  ·  Stage 6 full notify");
 
   big(s, "21.2%", "1 Thread", 0.3, 1.35);
   big(s, "68.4%", "4 Threads", 3.5, 1.35);
@@ -312,7 +312,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 8, "StackWriter 模块级瓶颈定位", "sub-stage 34/35  ·  ring write 内锁 vs eventfd 开销分离");
+  hdr(s, 8, "栈写入器 模块级瓶颈定位", "sub-stage 34/35  ·  ring write 内锁 vs eventfd 开销分离");
 
   tbl(s, [
     ["Sub-stage", "测量内容", "1T", "4T", "8T", "16T"],
@@ -332,7 +332,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 9, "Prototype  ↔  OpenHarmony  架构对齐", "热路径模块映射");
+  hdr(s, 9, "原型  ↔  OpenHarmony  架构对齐", "热路径模块映射");
 
   tbl(s, [
     ["热路径操作", "Prototype (Plan B)", "OpenHarmony (hook_client.cpp)"],
@@ -407,7 +407,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 12, "Next Steps");
+  hdr(s, 12, "后续计划");
 
   [
     { n: "01", t: "Producer 端继续拆解", d: "consumer 侧 profiling，完善 sub-stage 36 完整链测量数据", c: C.blue },
