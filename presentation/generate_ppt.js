@@ -156,22 +156,29 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 
   [
     { n: "01", t: "Record Fill Outside Writer Mutex", c: C.blue, lines: [
-      "record 元数据填充移出锁",
+      "移出锁的操作: pid, tid, timestamp, type, size, addr 填充 + thread-name 更新",
+      "这些操作不碰共享状态——pid/tid 是 thread-local cache，timestamp 是 clock_gettime",
+      "原来锁内做: lock → fill → write_ring → notify → unlock",
+      "优化后: fill → lock → write_ring → notify → unlock",
       "4T: 3.51s→2.72s (22.5%)    8T: 3.64s→3.12s (14.3%)",
-      "缩短临界区 = 减少竞争窗口",
+      "核心收益: 缩短锁内工作量 → 减少其他线程排队等锁时间",
     ]},
     { n: "02", t: "Stage 6  Batch  Publish", c: C.orange, lines: [
-      "per-thread buffer → 一次拿锁批量写 → 一次 atomic publish → 一次 notify",
+      "per-thread buffer (array<HookRecord, 65>) + counter, env: LNHV1_STAGE6_BATCH_SIZE=1~64",
+      "BufferStage6Record: 每 record 加到 buffer; count >= batch_size 时触发 FlushStage6Batch",
+      "Flush 内: 拿一次 mutex_ → WriteRecordsLocked(批量拷贝到 ring) → 一次 atomic write_index → 一次 PrepareFlush",
+      "原来 100万条 = 100万次拿锁 + 100万次 atomic publish + ~5万次 eventfd",
+      "batch64 ↓ = ~1.5万次拿锁 + ~1.5万次 atomic publish + ~780次 eventfd",
       "1T: 1.55s→1.22s    8T: 3.12s→1.28s    16T: 3.41s→1.34s",
-      "env gate: LNHV1_STAGE6_BATCH_SIZE = <1..64>",
+      "线程退出时 Stage6RecordBatch 析构函数自动 Flush 排空残留",
     ]},
   ].forEach((o, i) => {
     const y = 1.4 + i * 2.7;
-    s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y, w: 12.7, h: 2.2, fill: { color: C.white }, rectRadius: 0.1, line: { color: o.c, width: 1.2 } });
-    s.addShape(pptx.ShapeType.rect, { x: 0.3, y, w: 0.12, h: 2.2, fill: { color: o.c } });
+    s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y, w: 12.7, h: 2.7, fill: { color: C.white }, rectRadius: 0.1, line: { color: o.c, width: 1.2 } });
+    s.addShape(pptx.ShapeType.rect, { x: 0.3, y, w: 0.12, h: 2.7, fill: { color: o.c } });
     s.addText(o.n, { x: 0.65, y: y + 0.25, w: 0.7, h: 0.7, fontSize: 30, bold: true, color: o.c, fontFace: "Consolas" });
     s.addText(o.t, { x: 1.5, y: y + 0.2, w: 6, h: 0.4, fontSize: 15, bold: true, color: C.ink });
-    blt(s, o.lines, 1.7, y + 0.7, 10.8, 1.2, 13);
+    blt(s, o.lines, 1.7, y + 0.7, 10.8, 1.7, 12);
   });
 })();
 
