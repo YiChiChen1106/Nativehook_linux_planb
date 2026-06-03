@@ -156,28 +156,28 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 
   [
     { n: "01", t: "记录填充移出写入锁", c: C.blue, lines: [
-      "移出锁的操作: 进程ID、线程ID、时间戳、类型、大小、地址 + 线程名更新",
-      "这些字段不碰共享状态——进程/线程ID缓存于线程本地，时间戳直接系统调用",
+      "移出锁的操作: 进程/线程ID、时间戳、类型、大小、地址 + 线程名更新",
+      "这些字段不碰共享状态 — 进程/线程ID本地缓存，时间戳直接系统调用",
       "原来: 拿锁 → 填充字段 → 写共享内存 → 通知 → 放锁",
       "优化后: 填充字段 → 拿锁 → 写共享内存 → 通知 → 放锁",
-      "4T: 3.51s→2.72s (22.5%)    8T: 3.64s→3.12s (14.3%)",
-      "核心收益: 缩短临界区 → 减少其他线程等锁时间",
+      "4T: 3.51→2.72s (22.5%)    8T: 3.64→3.12s (14.3%)",
+      "核心收益: 缩短临界区 → 减少等锁时间",
     ]},
     { n: "02", t: "Stage 6  批量发布", c: C.orange, lines: [
-      "线程本地缓冲区 (固定大小数组 + 计数器)",
-      "每条记录先进入缓冲区; 攒满批次大小 → 触发批量排空",
-      "排空时: 拿一次锁 → 批量写共享内存 → 一次原子更新索引 → 一次事件通知",
+      "线程本地缓冲区 (固定数组 + 计数器)",
+      "记录先进缓冲区; 攒满批次大小 → 触发批量排空",
+      "排空: 一次拿锁 → 批量写 → 一次原子发布索引 → 一次事件通知",
       "线程退出时析构函数自动排空残留",
-      "env gate: LNHV1_STAGE6_BATCH_SIZE=1~64（默认0=关闭）",
-      "效果: 1T 1.55s→1.22s    8T 3.12s→1.28s    16T 3.41s→1.34s",
+      "控制: LNHV1_STAGE6_BATCH_SIZE=1~64（默认0=关闭）",
+      "效果: 1T 1.55→1.22s    8T 3.12→1.28s    16T 3.41→1.34s",
     ]},
   ].forEach((o, i) => {
     const y = 1.4 + i * 2.7;
-    s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y, w: 12.7, h: 2.7, fill: { color: C.white }, rectRadius: 0.1, line: { color: o.c, width: 1.2 } });
-    s.addShape(pptx.ShapeType.rect, { x: 0.3, y, w: 0.12, h: 2.7, fill: { color: o.c } });
+    s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y, w: 12.7, h: 3.0, fill: { color: C.white }, rectRadius: 0.1, line: { color: o.c, width: 1.2 } });
+    s.addShape(pptx.ShapeType.rect, { x: 0.3, y, w: 0.12, h: 3.0, fill: { color: o.c } });
     s.addText(o.n, { x: 0.65, y: y + 0.25, w: 0.7, h: 0.7, fontSize: 30, bold: true, color: o.c, fontFace: "Consolas" });
     s.addText(o.t, { x: 1.5, y: y + 0.2, w: 6, h: 0.4, fontSize: 15, bold: true, color: C.ink });
-    blt(s, o.lines, 1.7, y + 0.7, 10.8, 1.7, 12);
+    blt(s, o.lines, 1.7, y + 0.7, 10.8, 1.8, 11);
   });
 })();
 
