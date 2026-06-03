@@ -166,12 +166,12 @@ function card(slide, tag, title, body, x, y, w, h, color) {
       "env gate: LNHV1_STAGE6_BATCH_SIZE = <1..64>",
     ]},
   ].forEach((o, i) => {
-    const y = 1.3 + i * 1.95;
-    s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y, w: 12.7, h: 1.7, fill: { color: C.white }, rectRadius: 0.1, line: { color: o.c, width: 1.2 } });
-    s.addShape(pptx.ShapeType.rect, { x: 0.3, y, w: 0.12, h: 1.7, fill: { color: o.c } });
-    s.addText(o.n, { x: 0.65, y: y + 0.2, w: 0.7, h: 0.7, fontSize: 30, bold: true, color: o.c, fontFace: "Consolas" });
-    s.addText(o.t, { x: 1.5, y: y + 0.15, w: 6, h: 0.4, fontSize: 15, bold: true, color: C.ink });
-    blt(s, o.lines, 1.7, y + 0.55, 10.8, 1.0, 11);
+    const y = 1.4 + i * 2.7;
+    s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y, w: 12.7, h: 2.2, fill: { color: C.white }, rectRadius: 0.1, line: { color: o.c, width: 1.2 } });
+    s.addShape(pptx.ShapeType.rect, { x: 0.3, y, w: 0.12, h: 2.2, fill: { color: o.c } });
+    s.addText(o.n, { x: 0.65, y: y + 0.25, w: 0.7, h: 0.7, fontSize: 30, bold: true, color: o.c, fontFace: "Consolas" });
+    s.addText(o.t, { x: 1.5, y: y + 0.2, w: 6, h: 0.4, fontSize: 15, bold: true, color: C.ink });
+    blt(s, o.lines, 1.7, y + 0.7, 10.8, 1.2, 13);
   });
 })();
 
