@@ -163,7 +163,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
       "4T: 3.51→2.72s (22.5%)    8T: 3.64→3.12s (14.3%)",
       "核心收益: 缩短临界区 → 减少等锁时间",
     ]},
-    { n: "02", t: "Stage 6  批量发布", c: C.orange, lines: [
+    { n: "02", t: "批量发布 (Batch Publish)", c: C.orange, lines: [
       "线程本地缓冲区 (固定数组 + 计数器)",
       "记录先进缓冲区; 攒满批次大小 → 触发批量排空",
       "排空: 一次拿锁 → 批量写 → 一次原子发布索引 → 一次事件通知",
@@ -185,7 +185,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 5, "批量发布 — 工作原理", "逐记录  vs  逐批次");
+  hdr(s, 5, "批量发布 — 工作原理 (Batch Publish)", "逐记录  vs  逐批次");
 
   const L = C.line, B = C.blue, G = C.green, O = C.orange, W = C.white, D = C.dim, I = C.ink;
 
@@ -264,7 +264,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 6, "批量发布 — 服务器验证数据", "100万次固定负载  ·  Stage 6 full notify");
+  hdr(s, 6, "批量发布 — 服务器验证数据 (Batch Publish)", "100万次固定负载  ·  Stage 6 full notify");
 
   big(s, "21.2%", "1 Thread", 0.3, 1.35);
   big(s, "68.4%", "4 Threads", 3.5, 1.35);
