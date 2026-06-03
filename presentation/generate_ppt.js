@@ -112,7 +112,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 1, "上次组会反馈闭环", "四个问题，逐一回应");
+  hdr(s, 2, "上次组会反馈闭环", "四个问题，逐一回应");
 
   const cards = [
     { tag: "RESOLVED", c: C.green, t: "▸ \"4T比1T多1.8s\"", b: "ring共享状态竞争\n→ batch解决后 4T: 2.72s → 0.86s" },
@@ -131,7 +131,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 2, "Writer/Ring Impact 拆解实验", "sub-stage 28~33 逐段测量，固定100万次malloc/free pair");
+  hdr(s, 3, "Writer/Ring Impact 拆解实验", "sub-stage 28~33 逐段测量，固定100万次malloc/free pair");
 
   tbl(s, [
     ["Sub-stage", "测量内容", "1T", "4T", "8T", "16T"],
@@ -152,7 +152,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 3, "Producer 端两项优化", "缩短 per-record 共享路径开销");
+  hdr(s, 4, "Producer 端两项优化", "缩短 per-record 共享路径开销");
 
   [
     { n: "01", t: "Record Fill Outside Writer Mutex", c: C.blue, lines: [
@@ -182,11 +182,90 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   });
 })();
 
-// 5 — Batch 数据
+// 5 — Batch 可视化
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 4, "Batch Publish — Pink 验证数据", "100万次固定负载  ·  Stage 6 full notify");
+  hdr(s, 5, "Batch Publish — 工作原理", "Per-Record  vs  Per-Batch");
+
+  const L = C.line, B = C.blue, G = C.green, O = C.orange, W = C.white, D = C.dim, I = C.ink;
+
+  function rect(x, y, w, h, c, txt, fs, fc) {
+    s.addShape(pptx.ShapeType.roundRect, { x, y, w, h, fill: { color: c }, rectRadius: 0.04, line: { color: L, width: 0.5 } });
+    if (txt) s.addText(txt, { x, y, w, h, fontSize: fs||9, color: fc||W, align:"center", valign:"middle", bold:true });
+  }
+  function arrow(x1, y1, x2, y2) {
+    s.addShape(pptx.ShapeType.line, { x: x1, y: y1, w: x2-x1, h: y2-y1, line: { color: D, width: 1.2, endArrowType: "triangle" } });
+  }
+  function arrowR(x, y, w) {
+    s.addShape(pptx.ShapeType.line, { x, y: y+0.05, w, h: 0, line: { color: D, width: 1.2, endArrowType: "triangle" } });
+  }
+
+  // === LEFT: Per-Record (before) ===
+  s.addText("Per-Record（优化前）", { x: 0.3, y: 1.25, w: 5.8, h: 0.35, fontSize: 13, bold: true, color: I });
+  const ry = 1.75;
+  for (let i = 0; i < 3; i++) {
+    const y = ry + i * 0.75;
+    rect(0.3, y, 1.0, 0.45, B, "record " + (i+1), 9, W);
+    arrowR(1.3, y, 0.4);
+    rect(1.7, y, 0.7, 0.45, "D0D8E8", "lock", 8, D);
+    arrowR(2.4, y, 0.4);
+    rect(2.8, y, 0.9, 0.45, "D0D8E8", "write", 8, D);
+    arrowR(3.7, y, 0.4);
+    rect(4.1, y, 0.9, 0.45, "D0D8E8", "notify", 8, D);
+  }
+  rect(0.3, ry + 3 * 0.75 + 0.15, 1.0, 0.35, "F0F0F8", "...", 9, D);
+  rect(0.3, ry + 3 * 0.75 + 0.6, 4.7, 0.35, C.blueBg, "record → 每 percord 走一遍拿锁、写ring、通知", 9, D);
+
+  // === RIGHT: Per-Batch (after) ===
+  s.addText("Per-Batch（batch=64 优化后）", { x: 7.2, y: 1.25, w: 5.8, h: 0.35, fontSize: 13, bold: true, color: I });
+  const ry2 = 1.75;
+  for (let i = 0; i < 3; i++) {
+    rect(7.2, ry2 + i * 0.75, 1.0, 0.45, G, "record " + (i+1), 9, W);
+  }
+  rect(7.2, ry2 + 3 * 0.75 + 0.15, 1.0, 0.35, "F0F0F8", "...", 9, D);
+  rect(7.2, ry2 + 3 * 0.75 + 0.15 + 0.15, 1.0, 0.45, G, "record 64", 9, W);
+
+  // Buffer box
+  const bx = 8.5, by = 1.9, bw = 1.6, bh = 3.1;
+  s.addShape(pptx.ShapeType.roundRect, { x: bx, y: by, w: bw, h: bh, fill: { color: "F0FDF4" }, rectRadius: 0.06, line: { color: G, width: 1.5, dashType:"dash" } });
+  s.addText("buffer\n64 records", { x: bx, y: by+0.5, w: bw, h: 0.8, fontSize: 11, bold: true, color: G, align:"center" });
+  s.addText("count++", { x: bx, y: by+1.3, w: bw, h: 0.4, fontSize: 8, color: D, align:"center" });
+  s.addText("满 64 → flush", { x: bx, y: by+1.8, w: bw, h: 0.4, fontSize: 9, bold: true, color: O, align:"center" });
+  s.addText("析构 → flush 残留", { x: bx, y: by+2.3, w: bw, h: 0.4, fontSize: 9, color: D, align:"center" });
+
+  // Arrows into buffer
+  for (let i = 0; i < 3; i++) {
+    arrow(8.2, ry2 + i * 0.75 + 0.22, bx, by + 0.5 + i * 0.5);
+  }
+
+  // After buffer: one lock + write + notify
+  const ay = by + 0.3;
+  arrow(bx + bw, ay + 0.15, 10.4, ay + 0.15);
+  rect(10.4, ay - 0.1, 0.9, 0.5, W, "lock\n1次", 8, O);
+  arrowR(11.3, ay, 0.3);
+  rect(11.6, ay - 0.1, 0.9, 0.5, W, "write\n64条", 8, O);
+  arrowR(12.6, ay - 0.1, 0.15); // wrap
+
+  // Second line: publish + notify
+  const a2y = ay + 1.2;
+  arrow(bx + bw, a2y + 0.15, 10.4, a2y + 0.15);
+  rect(10.4, a2y - 0.1, 1.2, 0.5, W, "publish\n1次", 8, O);
+  arrowR(11.6, a2y, 0.3);
+  rect(11.9, a2y - 0.1, 0.9, 0.5, W, "notify\n1次", 8, O);
+
+  // ===== Summary row =====
+  rect(0.3, 6.2, 12.6, 0.65, C.orangeBg, "", 0, W);
+  s.addText("即：100万次锁操作 → 1.5万次锁操作    100万次 atomic publish → 1.5万次    ~5万次 eventfd → ~780次", {
+    x: 0.5, y: 6.2, w: 12.2, h: 0.65, fontSize: 13, color: W, align: "center", valign: "middle", bold: true,
+  });
+})();
+
+// 6 — Batch 数据
+(() => {
+  const s = pptx.addSlide();
+  s.background = { fill: C.bg };
+  hdr(s, 6, "Batch Publish — Pink 验证数据", "100万次固定负载  ·  Stage 6 full notify");
 
   big(s, "21.2%", "1 Thread", 0.3, 1.35);
   big(s, "68.4%", "4 Threads", 3.5, 1.35);
@@ -206,11 +285,11 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 0.5, 4.8, 12, 1.5, 11);
 })();
 
-// 6 — eBPF 高线程
+// 7 — eBPF 高线程
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 6, "eBPF 高线程验证 — 反超 LD_PRELOAD", "per-CPU ringbuf 无共享竞争，高线程下优势显著");
+  hdr(s, 7, "eBPF 高线程验证 — 反超 LD_PRELOAD", "per-CPU ringbuf 无共享竞争，高线程下优势显著");
 
   tbl(s, [
     ["Threads", "Run", "eBPF uprobe", "LD_PRELOAD optimized", "eBPF 快多少"],
@@ -230,11 +309,11 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 0.5, 4.8, 12, 2.2, 13);
 })();
 
-// 7 — 模块级
+// 8 — 模块级
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 7, "StackWriter 模块级瓶颈定位", "sub-stage 34/35  ·  ring write 内锁 vs eventfd 开销分离");
+  hdr(s, 8, "StackWriter 模块级瓶颈定位", "sub-stage 34/35  ·  ring write 内锁 vs eventfd 开销分离");
 
   tbl(s, [
     ["Sub-stage", "测量内容", "1T", "4T", "8T", "16T"],
@@ -250,11 +329,11 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 0.5, 4.8, 12, 2, 11);
 })();
 
-// 7 — 架构
+// 9 — 架构
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 8, "Prototype  ↔  OpenHarmony  架构对齐", "热路径模块映射");
+  hdr(s, 9, "Prototype  ↔  OpenHarmony  架构对齐", "热路径模块映射");
 
   tbl(s, [
     ["热路径操作", "Prototype (Plan B)", "OpenHarmony (hook_client.cpp)"],
@@ -267,11 +346,11 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 0.3, 1.3, 12.6, 0.65);
 })();
 
-// 8 — Fork
+// 10 — Fork
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 9, "OpenHarmony Fork — 优化移植状态", "gitlab.youtune.tech/cychi/cyc_nativehook");
+  hdr(s, 10, "OpenHarmony Fork — 优化移植状态", "gitlab.youtune.tech/cychi/cyc_nativehook");
 
   tbl(s, [
     ["函数", "调用场景", "record-fill-before-lock", "batch publish"],
@@ -287,11 +366,11 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 0.5, 4.2, 12, 1.5, 11);
 })();
 
-// 9 — 教训+三步法
+// 11 — 教训+三步法
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 10, "经验教训 & 三步预检方法", "两个无效优化如何发生，以及后续怎么避免");
+  hdr(s, 11, "经验教训 & 三步预检方法", "两个无效优化如何发生，以及后续怎么避免");
 
   // Left
   s.addShape(pptx.ShapeType.roundRect, { x: 0.3, y: 1.35, w: 5.85, h: 4.5, fill: { color: C.pinkBg }, rectRadius: 0.1, line: { color: C.pink, width: 1.2 } });
@@ -325,11 +404,11 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   ], 6.7, 1.85, 5.8, 3.8, 11);
 })();
 
-// 10 — Next
+// 12 — Next
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 11, "Next Steps");
+  hdr(s, 12, "Next Steps");
 
   [
     { n: "01", t: "Producer 端继续拆解", d: "consumer 侧 profiling，完善 sub-stage 36 完整链测量数据", c: C.blue },
