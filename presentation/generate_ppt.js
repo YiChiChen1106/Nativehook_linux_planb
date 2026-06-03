@@ -420,7 +420,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 
   // Right
   s.addShape(pptx.ShapeType.roundRect, { x: 6.45, y: 1.35, w: 6.55, h: 4.5, fill: { color: C.greenBg }, rectRadius: 0.1, line: { color: C.green, width: 1.2 } });
-  s.addText("三步预检法  [AGENTS.md]", { x: 6.7, y: 1.5, w: 5, h: 0.35, fontSize: 16, bold: true, color: C.green });
+  s.addText("三步预检法", { x: 6.7, y: 1.5, w: 5, h: 0.35, fontSize: 16, bold: true, color: C.green });
   blt(s, [
     "①  画映射表",
     "    原型每个模块 ↔ 真实代码 函数+行号",
@@ -444,8 +444,8 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 
   [
     { n: "01", t: "Producer 端继续拆解", d: "consumer 侧 profiling，完善 sub-stage 36 完整链测量数据", c: C.blue },
-    { n: "02", t: "真实代码验证", d: "等待 OpenHarmony 编译环境 → GitLab fork benchmark → 合 master", c: C.green },
-    { n: "03", t: "eBPF 高线程验证结论", d: "8T/16T 已确认：eBPF per-CPU ringbuf 反超 LD_PRELOAD 2.5~3x\n如需进一步：评估 producer 端 eBPF 替代方案", c: C.purple },
+    { n: "02", t: "eBPF 高线程验证结论", d: "8T/16T 已确认：eBPF per-CPU ringbuf 反超 LD_PRELOAD 2.5~3x\n如需进一步：评估 producer 端 eBPF 替代方案", c: C.purple },
+    { n: "03", t: "真实代码验证", d: "等待 OpenHarmony 编译环境 → GitLab fork benchmark → 合 master", c: C.green },
   ].forEach((it, i) => {
     const y = 1.5 + i * 1.85;
     s.addShape(pptx.ShapeType.roundRect, { x: 1.0, y, w: 11.3, h: 1.5, fill: { color: C.white }, rectRadius: 0.1, line: { color: it.c, width: 1.5 } });
