@@ -332,17 +332,50 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 9, "原型  ↔  OpenHarmony  架构对齐", "热路径模块映射");
+  hdr(s, 9, "原型  ↔  OpenHarmony  架构对齐", "已对齐的模块 vs 仍存在的差异");
 
-  tbl(s, [
-    ["热路径操作", "Prototype (Plan B)", "OpenHarmony (hook_client.cpp)"],
-    ["malloc / filter / sample", "hook_writer", "hook_malloc"],
-    ["re-entry guard", "HookReentryGuard", "__set_hook_flag"],
-    ["StackRawData fill", "simplified", "rawdata.{pid, tid, size, addr, ts}"],
-    ["AddressHandler", "address_handler.h  [NEW]", "AddAllocAddr()"],
-    ["StackWriter write", "stack_writer.cpp  [NEW]", "WriteWithPayloadTimeout"],
-    ["StackWriter flush", "Flush / FlushEventFd  [NEW]", "Flush → EventNotifier::Post"],
-  ], 0.3, 1.3, 12.6, 0.65);
+  // Left: aligned
+  s.addShape(pptx.ShapeType.roundRect, { x: 0.25, y: 1.2, w: 6.0, h: 5.5, fill: { color: C.greenBg }, rectRadius: 0.1, line: { color: C.green, width: 1.2 } });
+  s.addText("✓ 已对齐的模块", { x: 0.5, y: 1.3, w: 4, h: 0.35, fontSize: 14, bold: true, color: C.green });
+
+  const aligned = [
+    ["操作", "原型 (Plan B)", "真实代码"],
+    ["malloc入口", "hook_writer", "hook_malloc"],
+    ["重入保护", "HookReentryGuard", "__set_hook_flag"],
+    ["地址追踪", "address_handler.h", "AddAllocAddr()"],
+    ["写共享内存", "stack_writer.cpp", "WriteWithPayloadTimeout"],
+    ["通知消费者", "stack_writer::Flush", "Flush→EventNotifier::Post"],
+  ];
+
+  const n = 3;
+  const cw = [1.8, 2.0, 2.2];
+  const hdrRow = aligned[0].map((h, i) => ({
+    text: h, options: { bold: true, fontSize: 9, color: C.green, fill: { color: C.white }, align: "center" }
+  }));
+  const datRows = aligned.slice(1).map((r, ri) =>
+    r.map((c, ci) => ({
+      text: String(c), options: { fontSize: 9, color: C.ink, fill: { color: ri % 2 ? C.white : C.greenBg }, align: "center" }
+    }))
+  );
+  s.addTable([hdrRow, ...datRows], {
+    x: 0.45, y: 1.8, w: 5.6,
+    border: { type: "solid", color: C.green, pt: 0.5 },
+    colW: cw, rowH: 0.5, margin: [2, 4, 2, 4],
+  });
+
+  // Right: gaps
+  s.addShape(pptx.ShapeType.roundRect, { x: 6.55, y: 1.2, w: 6.5, h: 5.5, fill: { color: C.pinkBg }, rectRadius: 0.1, line: { color: C.pink, width: 1.2 } });
+  s.addText("✗ 仍存在的差异", { x: 6.8, y: 1.3, w: 4, h: 0.35, fontSize: 14, bold: true, color: C.pink });
+
+  blt(s, [
+    "FpUnwind 栈回溯: aarch64 专用指令，原型跑 x86 无法实现",
+    "StackRawData 格式: 原型简化版字段 vs 真实代码含 ip[] 数组 + jsChainId",
+    "record 大小计算: 原型固定 sizeof(HookRecord)，真实代码根据 fpunwind 模式动态计算",
+    "构建系统: 原型用 CMake，真实代码用 GN + OpenHarmony SDK",
+    "共享内存层: 原型直接操作 ring，真实代码多一层 ShareMemoryBlock 封装",
+    "consumer 交互: 原型简单 eventfd，真实代码多了一层 EventNotifier + 心跳检测",
+    "编译验证: 原型可本地编译测试，真实代码待 OH SDK 环境",
+  ], 6.9, 1.85, 6.0, 4.5, 11);
 })();
 
 // 10 — Fork
