@@ -11,7 +11,7 @@ Instructions for future agents continuing the `native_hook` Plan B optimization 
 ## Target Codebase (Real OpenHarmony)
 
 - Gitee upstream: `https://gitee.com/openharmony/developtools_profiler`
-- GitLab fork: `git@gitlab.youtune.tech:cychi/cyc_nativehook.git`
+- GitLab fork: `git@gitlab.youtune.tech:memory_leak/yt_nativehook.git`
 - Target path: `device/plugins/native_hook/src/hook_client.cpp`
 - Build system: GN (not CMake), requires full OpenHarmony SDK
 - WSL clone (slow due to LFS): `/home/eden/projects/openharmony_nativehook/`

@@ -117,7 +117,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
   const cards = [
     { tag: "RESOLVED", c: C.green, t: "▸ \"4T比1T多1.8s\"", b: "ring共享状态竞争\n→ batch解决后 4T: 2.72s → 0.86s" },
     { tag: "UPGRADED", c: C.blue, t: "▸ \"跑一下perf\"", b: "ablation替代perf\n→ sub-stage 34/35 拆到模块内部" },
-    { tag: "COMPLETED", c: C.orange, t: "▸ \"fork Gitee→GitLab\"", b: "5个核心函数全加batch\n→ gitlab.youtune.tech/cychi/cyc_nativehook" },
+    { tag: "COMPLETED", c: C.orange, t: "▸ \"fork Gitee→GitLab\"", b: "5个核心函数全加batch\n→ gitlab.youtune.tech/memory_leak/yt_nativehook" },
     { tag: "VERIFIED", c: C.orange, t: "▸ \"4T eBPF异常快\"", b: "高线程验证: 8T eBPF=1.71s vs LD=4.27s (2.5x)\n16T eBPF=1.47s vs LD=4.39s (3.0x)\neBPF per-CPU ringbuf 无共享竞争 → 详见 Slide 6" },
   ];
 
@@ -382,7 +382,7 @@ function card(slide, tag, title, body, x, y, w, h, color) {
 (() => {
   const s = pptx.addSlide();
   s.background = { fill: C.bg };
-  hdr(s, 10, "OpenHarmony Fork — 优化移植状态", "gitlab.youtune.tech/cychi/cyc_nativehook");
+  hdr(s, 10, "OpenHarmony Fork — 优化移植状态", "gitlab.youtune.tech/memory_leak/yt_nativehook");
 
   tbl(s, [
     ["函数", "调用场景", "record-fill-before-lock", "batch publish"],
