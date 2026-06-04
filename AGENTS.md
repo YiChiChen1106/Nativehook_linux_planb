@@ -66,6 +66,7 @@ ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no cychi@10.87.235.29 \
 ## Current Branch Commit Stack
 
 Above `main`:
+- `e19571b` Fix sub-stage 36 deadlock: remove double-lock on StackWriter inner_mutex_
 - `8d82a43` Add native hook handoff note
 - `4adf450` Add Stage 6 batch publish experiment
 - `1b3ec69` Move record fill outside writer mutex
