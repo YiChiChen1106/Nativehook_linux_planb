@@ -1104,23 +1104,19 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
     const uint64_t write_start = HotpathProfileStart();
 
     if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
-        stack_writer_.Lock();
         stack_writer_.Write(&record, 1, false);
         if (sub_ablation_stage <= kStackWriterSubStageWriteOnly) {
-            stack_writer_.Unlock();
             HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
             return true;
         }
         HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
         if (sub_ablation_stage == kStackWriterSubStageFlushOnly) {
-            stack_writer_.Unlock();
             const uint64_t flush_start = HotpathProfileStart();
             stack_writer_.FlushEventFd();
             HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
             return true;
         }
         const uint64_t flush_start = HotpathProfileStart();
-        stack_writer_.Unlock();
         stack_writer_.Flush();
         HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
     }
