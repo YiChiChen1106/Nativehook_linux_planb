@@ -41,6 +41,9 @@ public:
 
     bool Write(const HookRecord* records, uint32_t record_count, bool self_drain);
 
+    // WriteLocked: same as Write() but caller must hold inner_mutex_.
+    bool WriteLocked(const HookRecord* records, uint32_t record_count, bool self_drain);
+
     bool PrepareFlush();
 
     bool Flush();

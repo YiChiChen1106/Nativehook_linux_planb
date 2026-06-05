@@ -70,11 +70,24 @@ struct Stage6RecordBatch {
     }
 };
 
+struct StackWriterRecordBatch {
+    std::array<HookRecord, kMaxStage6BatchSize + 1> records {};
+    uint32_t count = 0;
+
+    ~StackWriterRecordBatch()
+    {
+        if (count > 0) {
+            HookWriter::Instance().FlushStackWriterBatch();
+        }
+    }
+};
+
 thread_local uint32_t g_thread_name_counter = 0;
 thread_local uint32_t g_sample_counter = 0;
 thread_local uint32_t g_cached_tid = 0;
 thread_local ThreadTrackingContext* g_thread_tracking = nullptr;
 thread_local Stage6RecordBatch g_stage6_batch;
+thread_local StackWriterRecordBatch g_sw_batch;
 std::atomic<uint32_t> g_cached_pid {0};
 pthread_once_t g_pid_tid_cache_atfork_once = PTHREAD_ONCE_INIT;
 constexpr uint32_t kThreadNameRefreshInterval = 1000;
@@ -1101,6 +1114,15 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
     FillStage6OptimizedRecord(&record, HookEventType::kMalloc, addr, static_cast<uint64_t>(size));
     InsertTrackedAllocThreadLocal(use_fallback, addr);
 
+    const uint32_t sw_batch_size = GetStackWriterBatchSize();
+    if (sw_batch_size > 1) {
+        g_sw_batch.records[g_sw_batch.count++] = record;
+        if (g_sw_batch.count >= sw_batch_size) {
+            FlushStackWriterBatch();
+        }
+        return true;
+    }
+
     const uint64_t write_start = HotpathProfileStart();
 
     if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
@@ -1122,6 +1144,25 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
     }
 
     return true;
+}
+
+void HookWriter::FlushStackWriterBatch()
+{
+    if (g_sw_batch.count == 0) {
+        return;
+    }
+
+    stack_writer_.Lock();
+    stack_writer_.WriteLocked(g_sw_batch.records.data(), g_sw_batch.count, false);
+    stack_writer_.Unlock();
+
+    const uint32_t flushed_count = g_sw_batch.count;
+    g_sw_batch.count = 0;
+
+    const int sub = GetSubAblationStage();
+    if (sub >= kStackWriterSubStageFlushOnly) {
+        stack_writer_.Flush();
+    }
 }
 
 bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage)

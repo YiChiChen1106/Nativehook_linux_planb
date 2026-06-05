@@ -13,14 +13,20 @@ bool StackWriter::Write(const HookRecord* records, uint32_t record_count)
 
 bool StackWriter::Write(const HookRecord* records, uint32_t record_count, bool self_drain)
 {
+    pthread_mutex_lock(&inner_mutex_);
+    const bool ret = WriteLocked(records, record_count, self_drain);
+    pthread_mutex_unlock(&inner_mutex_);
+    return ret;
+}
+
+bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, bool self_drain)
+{
     if (record_count == 0) {
         return true;
     }
     if (header_ == nullptr || records_ == nullptr || records == nullptr) {
         return false;
     }
-
-    pthread_mutex_lock(&inner_mutex_);
 
     const uint32_t capacity = header_->capacity;
     const uint32_t write_index = AtomicLoadU32(&header_->write_index);
@@ -32,7 +38,6 @@ bool StackWriter::Write(const HookRecord* records, uint32_t record_count, bool s
     const uint32_t writable_count = (record_count <= available) ? record_count : available;
     if (writable_count == 0) {
         AtomicFetchAddU32(&header_->dropped, record_count);
-        pthread_mutex_unlock(&inner_mutex_);
         return false;
     }
 
@@ -48,14 +53,12 @@ bool StackWriter::Write(const HookRecord* records, uint32_t record_count, bool s
         if (writable_count < record_count) {
             AtomicFetchAddU32(&header_->dropped, record_count - writable_count);
         }
-        pthread_mutex_unlock(&inner_mutex_);
         return writable_count == record_count;
     }
     if (writable_count < record_count) {
         AtomicFetchAddU32(&header_->dropped, record_count - writable_count);
     }
 
-    pthread_mutex_unlock(&inner_mutex_);
     return writable_count == record_count;
 }
 

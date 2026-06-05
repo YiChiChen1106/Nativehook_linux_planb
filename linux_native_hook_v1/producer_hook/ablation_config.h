@@ -64,5 +64,6 @@ bool GetPidTidCacheEnabled();
 int GetTrackingMode();
 bool GetHotpathProfileEnabled();
 uint32_t GetStage6BatchSize();
+uint32_t GetStackWriterBatchSize();
 
 }  // namespace linux_native_hook_v1
