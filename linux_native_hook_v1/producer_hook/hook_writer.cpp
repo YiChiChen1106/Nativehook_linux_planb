@@ -1161,7 +1161,7 @@ void HookWriter::FlushStackWriterBatch()
 
     const int sub = GetSubAblationStage();
     if (sub >= kStackWriterSubStageFlushOnly) {
-        stack_writer_.Flush();
+        stack_writer_.FlushForced();
     }
 }
 

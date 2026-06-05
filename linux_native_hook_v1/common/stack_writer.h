@@ -50,6 +50,10 @@ public:
 
     bool FlushEventFd();
 
+    // FlushForced: always writes to eventfd regardless of flush_threshold_.
+    // Use for batch drain / thread exit where remaining records must be flushed.
+    bool FlushForced();
+
     uint32_t pending_count() const { return pending_count_; }
 
     void Lock() { pthread_mutex_lock(&inner_mutex_); }
