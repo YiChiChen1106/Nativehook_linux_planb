@@ -275,4 +275,37 @@ uint32_t GetLockDelayNs()
     return static_cast<uint32_t>(g_cached_lock_delay_ns.load(std::memory_order_acquire));
 }
 
+constexpr int kUnsetClientLockEnabled = -1;
+std::atomic<int> g_cached_client_lock_enabled {kUnsetClientLockEnabled};
+
+bool ParseClientLockEnabledFromEnv()
+{
+    const char* text = std::getenv("LNHV1_CLIENT_LOCK");
+    if (text == nullptr || text[0] == '\0') {
+        return false;
+    }
+
+    char* end_ptr = nullptr;
+    const long value = std::strtol(text, &end_ptr, 10);
+    if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0') {
+        return false;
+    }
+
+    return value == 1;
+}
+
+bool GetClientLockEnabled()
+{
+    int enabled = g_cached_client_lock_enabled.load(std::memory_order_acquire);
+    if (enabled != kUnsetClientLockEnabled) {
+        return enabled != 0;
+    }
+
+    const int parsed_enabled = ParseClientLockEnabledFromEnv() ? 1 : 0;
+    int expected = kUnsetClientLockEnabled;
+    g_cached_client_lock_enabled.compare_exchange_strong(
+        expected, parsed_enabled, std::memory_order_release, std::memory_order_relaxed);
+    return g_cached_client_lock_enabled.load(std::memory_order_acquire) != 0;
+}
+
 }  // namespace linux_native_hook_v1

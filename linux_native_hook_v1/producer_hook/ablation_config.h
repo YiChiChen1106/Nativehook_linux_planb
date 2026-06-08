@@ -66,5 +66,6 @@ bool GetHotpathProfileEnabled();
 uint32_t GetStage6BatchSize();
 uint32_t GetStackWriterBatchSize();
 uint32_t GetLockDelayNs();
+bool GetClientLockEnabled();
 
 }  // namespace linux_native_hook_v1

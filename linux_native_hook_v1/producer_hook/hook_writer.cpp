@@ -340,6 +340,7 @@ bool HookWriter::EnsureConnectedLocked()
     const bool connected = header_->magic == kShmMagic && header_->capacity == config.ring_capacity;
     if (connected) {
         connected_fast_path_.store(true, std::memory_order_release);
+        hook_socket_client_.SetConnected(true);
     }
     return connected;
 }
@@ -1125,6 +1126,14 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
 
     const uint64_t write_start = HotpathProfileStart();
 
+    // Client lock: mirrors real OH weakClient.lock() — brief lock to validate
+    // connection, released before the heavy StackWriter operations.
+    const bool use_client_lock = GetClientLockEnabled();
+    if (use_client_lock) {
+        hook_socket_client_.Lock();
+        hook_socket_client_.Unlock();
+    }
+
     if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
         stack_writer_.Write(&record, 1, false);
         if (sub_ablation_stage <= kStackWriterSubStageWriteOnly) {
@@ -1172,6 +1181,12 @@ bool HookWriter::RecordStackWriterSubAblationFreeThreadLocal(
 
     const uint64_t write_start = HotpathProfileStart();
 
+    const bool use_client_lock = GetClientLockEnabled();
+    if (use_client_lock) {
+        hook_socket_client_.Lock();
+        hook_socket_client_.Unlock();
+    }
+
     if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
         stack_writer_.Write(&record, 1, false);
         if (sub_ablation_stage <= kStackWriterSubStageWriteOnly) {
@@ -1197,6 +1212,12 @@ void HookWriter::FlushStackWriterBatch()
 {
     if (g_sw_batch.count == 0) {
         return;
+    }
+
+    const bool use_client_lock = GetClientLockEnabled();
+    if (use_client_lock) {
+        hook_socket_client_.Lock();
+        hook_socket_client_.Unlock();
     }
 
     stack_writer_.Lock();

@@ -11,6 +11,7 @@
 #include "common/shm_layout.h"
 #include "common/stack_writer.h"
 #include "common/unix_defs.h"
+#include "producer_hook/hook_socket_client.h"
 
 namespace linux_native_hook_v1 {
 
@@ -113,6 +114,7 @@ private:
     bool NotifyEventFd();
 
     StackWriter stack_writer_;
+    HookSocketClient hook_socket_client_;
     pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
     int control_fd_ = -1;
     int shm_fd_ = -1;
