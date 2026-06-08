@@ -1146,6 +1146,53 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
     return true;
 }
 
+bool HookWriter::RecordStackWriterSubAblationFreeThreadLocal(
+    bool use_fallback, void* ptr, int sub_ablation_stage)
+{
+    if (!EnsureConnectedForImpactSubAblation()) {
+        return false;
+    }
+
+    const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    if (!ConsumeTrackedAllocThreadLocal(use_fallback, addr)) {
+        return false;
+    }
+
+    HookRecord record {};
+    FillStage6OptimizedRecord(&record, HookEventType::kFree, addr, 0);
+
+    const uint32_t sw_batch_size = GetStackWriterBatchSize();
+    if (sw_batch_size > 1) {
+        g_sw_batch.records[g_sw_batch.count++] = record;
+        if (g_sw_batch.count >= sw_batch_size) {
+            FlushStackWriterBatch();
+        }
+        return true;
+    }
+
+    const uint64_t write_start = HotpathProfileStart();
+
+    if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
+        stack_writer_.Write(&record, 1, false);
+        if (sub_ablation_stage <= kStackWriterSubStageWriteOnly) {
+            HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
+            return true;
+        }
+        HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
+        if (sub_ablation_stage == kStackWriterSubStageFlushOnly) {
+            const uint64_t flush_start = HotpathProfileStart();
+            stack_writer_.FlushEventFd();
+            HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
+            return true;
+        }
+        const uint64_t flush_start = HotpathProfileStart();
+        stack_writer_.Flush();
+        HotpathProfileAdd(HotpathProfileSegment::kNotify, flush_start);
+    }
+
+    return true;
+}
+
 void HookWriter::FlushStackWriterBatch()
 {
     if (g_sw_batch.count == 0) {
@@ -1244,6 +1291,9 @@ bool HookWriter::RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablatio
     const int sub_ablation_stage = GetSubAblationStage();
     if (ablation_stage == kAblationStageNotify && IsStage6WriterRingImpactSubStage(sub_ablation_stage)) {
         return RecordStage6WriterRingImpactFreeThreadLocal(use_fallback, ptr, sub_ablation_stage);
+    }
+    if (ablation_stage == kAblationStageNotify && IsStackWriterSubAblationStage(sub_ablation_stage)) {
+        return RecordStackWriterSubAblationFreeThreadLocal(use_fallback, ptr, sub_ablation_stage);
     }
 
     if (ablation_stage == kAblationStageRecordWrite && IsRecordWriteSubAblationStage(sub_ablation_stage)) {

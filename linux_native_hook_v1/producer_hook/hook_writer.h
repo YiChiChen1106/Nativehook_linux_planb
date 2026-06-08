@@ -79,6 +79,8 @@ private:
     bool RecordStage6WriterRingImpactFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage);
     bool RecordStackWriterSubAblationAllocThreadLocal(
         bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordStackWriterSubAblationFreeThreadLocal(
+        bool use_fallback, void* ptr, int sub_ablation_stage);
     bool RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage);
     bool RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablation_stage);
     bool WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage);
