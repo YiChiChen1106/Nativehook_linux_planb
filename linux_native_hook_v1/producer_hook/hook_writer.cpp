@@ -329,7 +329,22 @@ bool HookWriter::EnsureConnectedLocked()
     }
 
     header_ = GetShmHeader(mapping_);
-    records_ = GetShmRecords(mapping_);
+    // The consumer may have set up shards. Re-map if the header indicates sharded mode.
+    const uint32_t num_shards = header_->num_shards;
+    if (num_shards > 0) {
+        const size_t shard_bytes = ShmBytesForCapacity(config.ring_capacity, num_shards);
+        if (shard_bytes > mapped_size_) {
+            munmap(mapping_, mapped_size_);
+            mapped_size_ = shard_bytes;
+            mapping_ = mmap(nullptr, mapped_size_, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, 0);
+            if (mapping_ == MAP_FAILED) {
+                mapping_ = nullptr;
+                return false;
+            }
+            header_ = GetShmHeader(mapping_);
+        }
+    }
+    records_ = GetShmRecords(mapping_, num_shards);
     flush_threshold_ = config.flush_threshold == 0 ? kDefaultFlushThreshold : config.flush_threshold;
     stack_writer_.SetSharedMemory(header_, records_, flush_threshold_);
     stack_writer_.SetEventFd(event_fd_);

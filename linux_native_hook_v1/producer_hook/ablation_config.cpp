@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "common/shm_layout.h"
+
 namespace linux_native_hook_v1 {
 namespace {
 
@@ -339,6 +341,39 @@ bool GetLockFreeRingEnabled()
     g_cached_lock_free_ring_enabled.compare_exchange_strong(
         expected, parsed_enabled, std::memory_order_release, std::memory_order_relaxed);
     return g_cached_lock_free_ring_enabled.load(std::memory_order_acquire) != 0;
+}
+
+constexpr int kUnsetShardedRingShards = -1;
+std::atomic<int> g_cached_sharded_ring_shards {kUnsetShardedRingShards};
+
+uint32_t ParseShardedRingShardsFromEnv()
+{
+    const char* text = std::getenv("LNHV1_SHARDED_RING");
+    if (text == nullptr || text[0] == '\0') {
+        return 0;
+    }
+
+    char* end_ptr = nullptr;
+    const unsigned long value = std::strtoul(text, &end_ptr, 10);
+    if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0' || value > kShmMaxShards) {
+        return 0;
+    }
+
+    return static_cast<uint32_t>(value);
+}
+
+uint32_t GetShardedRingShards()
+{
+    int shards = g_cached_sharded_ring_shards.load(std::memory_order_acquire);
+    if (shards != kUnsetShardedRingShards) {
+        return static_cast<uint32_t>(shards);
+    }
+
+    const int parsed_shards = static_cast<int>(ParseShardedRingShardsFromEnv());
+    int expected = kUnsetShardedRingShards;
+    g_cached_sharded_ring_shards.compare_exchange_strong(
+        expected, parsed_shards, std::memory_order_release, std::memory_order_relaxed);
+    return static_cast<uint32_t>(g_cached_sharded_ring_shards.load(std::memory_order_acquire));
 }
 
 }  // namespace linux_native_hook_v1

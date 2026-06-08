@@ -1,7 +1,9 @@
 #include "common/stack_writer.h"
 
 #include <cstdio>
+#include <cstring>
 
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include "producer_hook/ablation_config.h"
@@ -33,11 +35,52 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
         return false;
     }
 
+    const uint32_t num_shards = header_->num_shards;
     const uint32_t capacity = header_->capacity;
-    const bool lock_free = GetLockFreeRingEnabled();
+    const bool sharded = (num_shards > 0);
+
+    // Sharded mode: select shard by TID, single-writer per shard, no lock.
+    if (sharded) {
+        static thread_local uint32_t cached_tid = 0;
+        static thread_local uint32_t cached_shard = 0;
+        if (cached_tid == 0) {
+            cached_tid = static_cast<uint32_t>(syscall(SYS_gettid));
+            cached_shard = cached_tid % num_shards;
+        }
+        const uint32_t shard_idx = cached_shard;
+        const uint32_t shard_cap = ShardCapacity(capacity, num_shards);
+        ShmShard& shard = GetShard(header_, shard_idx);
+
+        const uint32_t shard_write = AtomicLoadU32(&shard.write_index);
+        const uint32_t shard_read = AtomicLoadU32(&shard.read_index);
+        const uint32_t shard_used = (shard_write >= shard_read)
+            ? (shard_write - shard_read)
+            : (shard_cap - shard_read + shard_write);
+        const uint32_t shard_avail = (shard_cap > shard_used) ? (shard_cap - shard_used - 1) : 0;
+        const uint32_t writable = (record_count <= shard_avail) ? record_count : shard_avail;
+        if (writable == 0) {
+            AtomicFetchAddU32(&shard.dropped, record_count);
+            return false;
+        }
+
+        const uint32_t offset = ShardRecordOffset(shard_idx, shard_cap);
+        for (uint32_t i = 0; i < writable; ++i) {
+            records_[offset + ((shard_write + i) % shard_cap)] = records[i];
+        }
+
+        const uint32_t next_write = (shard_write + writable) % shard_cap;
+        AtomicStoreU32(&shard.write_index, next_write);
+
+        // In sharded mode, consumer drains all shards; we don't update read_index.
+        // pending_count_ is not meaningful in sharded mode.
+        return writable == record_count;
+    }
+
+    // Non-sharded path (original logic).
+    const bool lock_free_ring = GetLockFreeRingEnabled();
 
     uint32_t write_index;
-    if (lock_free) {
+    if (lock_free_ring) {
         // CAS loop to claim space in the ring buffer.
         // Simulates per-CPU ringbuf: no sleeping mutex, just atomic contention.
         uint32_t read_index;
@@ -85,7 +128,7 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
     }
 
     // In lock-free mode, write_index was already advanced by CAS.
-    if (!lock_free) {
+    if (!lock_free_ring) {
         const uint32_t next_write = (write_index + record_count) % capacity;
         AtomicStoreU32(&header_->write_index, next_write);
     }
