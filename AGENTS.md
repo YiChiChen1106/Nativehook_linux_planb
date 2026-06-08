@@ -111,7 +111,7 @@ ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no cychi@10.87.235.29 \
 
 ## Current Branch Commit Stack
 
-`optimize/writer-ring-sharded-batch` above `main` (12 commits, 2026-06-08):
+`optimize/writer-ring-sharded-batch` above `main` (17 commits, 2026-06-08):
 
 Deadlock fix & ablation data:
 - `e19571b` Fix sub-stage 36 deadlock: remove double-lock on StackWriter inner_mutex_
@@ -123,6 +123,8 @@ Experiments:
 - `f0bd79a` Add StackWriter batch publish experiment (**negative result**)
 - `4aa70b1` Add eventfd flush threshold optimization for StackWriter (~4%)
 - `5ab84a2` Route free path through StackWriter for sub-stage 34/35/36
+- `86edf0d` Add configurable lock delay to simulate longer critical section (**inner_mutex_ not the bottleneck**)
+- `1c00982` Add --profile flag to consumer for timing breakdown
 
 Docs:
 - `ff6c837` Add work log 2026-06-05
@@ -220,9 +222,20 @@ Notes:
 
 Priority order:
 
-1. **Consumer ablation** — Break down sub=36's consumer drain (eventfd read, ring traversal, read_index update). Currently a black box at ~0.03s total.
-2. **Simulate longer critical section** — Prototype's ring write is ~25ns; real ShareMemoryBlock may be heavier with FpUnwind data memcpy. Add a configurable delay to inner_mutex_ critical section to assess contention at realistic scales.
-3. **Real code compilation** — Blocked on OH SDK. Once available, build the GitLab fork and validate ported optimizations.
+1. **Translate verified optimizations to OH fork** — Port eventfd threshold, free-path StackWriter alignment, and batch publish to `cyc_nativehook` hook_client.cpp. Apply three-question pre-flight check.
+2. **Real code compilation** — Blocked on OH SDK. Once available, build the GitLab fork and validate ported optimizations.
+3. **Sweep flush_threshold** — Current default=20. Larger values reduce consumer wakeups (less CPU) but increase latency. Find the knee.
+
+### Completed
+
+| Direction | Result |
+|---|---|
+| Sub-stage 36 deadlock | Fixed, UB data replaced |
+| StackWriter batch publish | Negative — inner_mutex_ too light |
+| Eventfd flush threshold | ~4%, code clean |
+| Free path → StackWriter | Neutral perf, cleaner data |
+| Lock delay simulation | inner_mutex_ not the bottleneck |
+| Consumer profiling | drain ~free, bottleneck is eventfd syscall |
 
 ### Do NOT Redo
 
