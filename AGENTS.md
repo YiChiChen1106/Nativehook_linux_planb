@@ -240,28 +240,8 @@ every proposed optimization MUST pass these three checks before any code is writ
 
 ### Step 1: Draw a Hot-Path Mapping Table
 
-Map every step of the real `hook_malloc` hot path to its prototype equivalent (or mark "missing"):
-
-```
-                          Prototype              Real (hook_client.cpp)
-──────────────────────────────────────────────────────────────────
- malloc/filter/sample     ✅ hook_writer         ✅ hook_malloc
- re-entry guard           ✅ HookReentryGuard    ✅ __set_hook_flag
- FpUnwind stack walk      ❌ missing             ✅ FpUnwind()
- GetStackSize             ❌ missing             ✅ GetStackSize()
- StackRawData fill        ⚠️ simplified          ✅ rawdata.{pid,tid,size,addr,ts}
- record size calc         ⚠️ simplified          ✅ realSize by fpunwind mode
- client lock              ❌ missing             ✅ weakClient.lock()
- UpdateThreadName         ❌ missing             ✅ UpdateThreadName()
- AddressHandler tracking  ✅ address_handler.h   ✅ AddAllocAddr()
-  StackWriter write/flush  ✅ stack_writer.cpp    ✅ WriteWithPayloadTimeout/Flush
-  notify                   ✅ NotifyEventFd       ✅ PrepareFlush/Flush
-
-StackWriter ablation sub-stages (34-36):
-  sub=34 write_only → ShareMemoryBlock::PutWithPayloadTimeout cost
-  sub=35 flush_only → write + EventNotifier::Post cost
-  sub=36 full       → complete SendStackWithPayload chain
-```
+Map every step of the real `hook_malloc` hot path to its prototype equivalent.
+See the table in [Alignment Status](#alignment-status) above — it is the single source of truth.
 
 ### Step 2: Re-Align the Prototype When Gaps Are Found
 
