@@ -2,19 +2,65 @@
 
 Instructions for future agents continuing the `native_hook` Plan B optimization work.
 
-## Clone URLs
+## Repository Map (Three Repos)
 
-- GitHub SSH: `git@github.com:YiChiChen1106/Nativehook_linux_planb.git`
-- GitLab HTTPS: `https://gitlab.youtune.tech/cychi/nativehook_linux_planb.git`
+### 1. Plan B Prototype — `native_hook_linux_planb`
+
+- GitHub: `git@github.com:YiChiChen1106/Nativehook_linux_planb.git`
+- GitLab mirror: `https://gitlab.youtune.tech/cychi/nativehook_linux_planb.git`
 - Active branch: `optimize/writer-ring-sharded-batch`
+- Build: CMake (local WSL + pink server)
+- Purpose: **Fast-iteration ablation experiments and benchmark**
+
+### 2. Personal OH Fork — `cyc_nativehook`
+
+- GitLab: `git@gitlab.youtune.tech:cychi/cyc_nativehook.git`
+- Branch: `master` (synced with team fork)
+- Build: GN + full OH SDK (not yet available)
+- Purpose: **Translate prototype optimizations to real hook_client.cpp, verify manually**
+
+### 3. Team OH Fork — `yt_nativehook`
+
+- GitLab: `git@gitlab.youtune.tech:memory_leak/yt_nativehook.git`
+- Branch: `master` (OH upstream + Plan B squash)
+- Build: GN + full OH SDK
+- Purpose: **Submit MRs for verified optimizations, team review**
 
 ## Target Codebase (Real OpenHarmony)
 
 - Gitee upstream: `https://gitee.com/openharmony/developtools_profiler`
-- GitLab fork: `git@gitlab.youtune.tech:memory_leak/yt_nativehook.git`
 - Target path: `device/plugins/native_hook/src/hook_client.cpp`
 - Build system: GN (not CMake), requires full OpenHarmony SDK
-- WSL clone (slow due to LFS): `/home/eden/projects/openharmony_nativehook/`
+- WSL clone (team + personal fork in one repo): `/home/eden/projects/openharmony_nativehook/`
+  - Remote `gitlab` → team fork (`memory_leak/yt_nativehook`)
+  - Remote `origin` → personal fork (`cychi/cyc_nativehook`)
+
+## Development Workflow
+
+Every optimization follows this three-stage pipeline:
+
+```
+原型 (native_hook_linux_planb)
+  │  CMake, WSL/pink, fast iteration
+  │  ablation sub-stage measurement
+  │  Prove the idea works with data
+  ▼
+个人 fork (cyc_nativehook)
+  │  Translate: prototype C++ → hook_client.cpp
+  │  Three-question pre-flight check:
+  │    1. Which prototype module does this change?
+  │    2. Which real file/function does it map to?
+  │    3. Does the real code actually execute this path?
+  │  If any question can't be answered → skip
+  ▼
+团队 fork (yt_nativehook)
+  │  Submit MR with verified changes
+  │  Team review → merge
+```
+
+**Why the personal fork middle step?** Past optimizations failed to port because
+the check wasn't done (PID/TID cache was redundant, tracking fallback had no target).
+The personal fork is a low-cost pre-screening layer before team review.
 
 ## Local Workspace (WSL)
 
