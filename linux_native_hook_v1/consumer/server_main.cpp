@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <sstream>
 #include <string>
 
@@ -58,7 +59,7 @@ void PrintUsage()
 {
     std::printf(
         "Usage: consumer [--socket path] [--shm name] [--capacity records] [--flush-threshold n] "
-        "[--sample-interval n] [--filter-size bytes] [--blocked] [--verbose]\n");
+        "[--sample-interval n] [--filter-size bytes] [--blocked] [--verbose] [--profile]\n");
 }
 
 std::string BuildShmName(int32_t peer_pid)
@@ -83,6 +84,7 @@ int main(int argc, char* argv[])
     int32_t filter_size = kDefaultFilterSize;
     uint8_t is_blocked = 0;
     bool verbose = false;
+    bool profile = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -114,6 +116,8 @@ int main(int argc, char* argv[])
             is_blocked = 1;
         } else if (arg == "--verbose") {
             verbose = true;
+        } else if (arg == "--profile") {
+            profile = true;
         } else {
             PrintUsage();
             return 1;
@@ -189,7 +193,12 @@ int main(int argc, char* argv[])
     std::fflush(stdout);
 
     Metrics metrics;
+    timespec t0 {}, t1 {}, t2 {}, t3 {};
     while (g_keep_running != 0) {
+        if (profile) {
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+        }
+
         uint64_t wake_count = 0;
         const ssize_t read_bytes = read(event_fd, &wake_count, sizeof(wake_count));
         if (read_bytes < 0) {
@@ -203,13 +212,32 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (profile) {
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+        }
+
         if (!consumer.ConsumeAvailable(&metrics, verbose)) {
             std::fprintf(stderr, "consumer failed to drain shared memory\n");
             break;
         }
+
+        if (profile) {
+            clock_gettime(CLOCK_MONOTONIC, &t2);
+        }
+
         std::printf("wake=%llu %s\n",
             static_cast<unsigned long long>(wake_count),
             metrics.Snapshot().c_str());
+
+        if (profile) {
+            clock_gettime(CLOCK_MONOTONIC, &t3);
+            const long eventfd_ns = (t1.tv_sec - t0.tv_sec) * 1000000000L + (t1.tv_nsec - t0.tv_nsec);
+            const long drain_ns = (t2.tv_sec - t1.tv_sec) * 1000000000L + (t2.tv_nsec - t1.tv_nsec);
+            const long output_ns = (t3.tv_sec - t2.tv_sec) * 1000000000L + (t3.tv_nsec - t2.tv_nsec);
+            std::printf("profile eventfd_ns=%ld drain_ns=%ld output_ns=%ld\n",
+                eventfd_ns, drain_ns, output_ns);
+        }
+
         std::fflush(stdout);
     }
 
