@@ -59,7 +59,7 @@ void PrintUsage()
 {
     std::printf(
         "Usage: consumer [--socket path] [--shm name] [--capacity records] [--flush-threshold n] "
-        "[--sample-interval n] [--filter-size bytes] [--blocked] [--verbose] [--profile]\n");
+        "[--sample-interval n] [--filter-size bytes] [--blocked] [--verbose] [--profile] [--shards n]\n");
 }
 
 std::string BuildShmName(int32_t peer_pid)
@@ -85,6 +85,7 @@ int main(int argc, char* argv[])
     uint8_t is_blocked = 0;
     bool verbose = false;
     bool profile = false;
+    uint32_t num_shards = 0;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -118,6 +119,11 @@ int main(int argc, char* argv[])
             verbose = true;
         } else if (arg == "--profile") {
             profile = true;
+        } else if (arg == "--shards" && i + 1 < argc) {
+            if (!ParsePositiveU32(argv[++i], &num_shards) || num_shards > kShmMaxShards) {
+                PrintUsage();
+                return 1;
+            }
         } else {
             PrintUsage();
             return 1;
@@ -148,7 +154,7 @@ int main(int argc, char* argv[])
     }
 
     ShmConsumer consumer;
-    if (!consumer.CreateAndMap(shm_name, capacity)) {
+    if (!consumer.CreateAndMap(shm_name, capacity, num_shards)) {
         std::fprintf(stderr, "Failed to create shared memory: %s\n", std::strerror(errno));
         close(client_fd);
         return 1;

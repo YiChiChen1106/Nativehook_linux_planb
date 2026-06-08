@@ -286,6 +286,12 @@ Two optimizations from the prototype failed to port because this check wasn't do
 
 ## Conventions
 
+- **Always use `git -C <absolute-path>` for all git commands.** Never rely on `cd` to switch repos
+  because the working directory may be stale from a previous command. The three repo paths are:
+  - Plan B prototype: `git -C /home/eden/projects/native_hook_planb`
+  - OH personal fork: `git -C /home/eden/projects/openharmony_nativehook`
+  - No `cd` before git; always use `-C` with the full path.
+
 - **Before taking any action (editing files, running commands that modify the codebase or system),
   explain what you plan to do in Chinese first and wait for explicit permission.**
 - **After answering a question, suggest next steps ranked by recommendation priority (highest first).**

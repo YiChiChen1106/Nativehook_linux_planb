@@ -14,7 +14,7 @@ public:
     ShmConsumer() = default;
     ~ShmConsumer();
 
-    bool CreateAndMap(const std::string& shm_name, uint32_t capacity);
+    bool CreateAndMap(const std::string& shm_name, uint32_t capacity, uint32_t num_shards = 0);
     bool ConsumeAvailable(Metrics* metrics, bool verbose = false);
 
     int shm_fd() const { return shm_fd_; }
@@ -28,6 +28,7 @@ private:
     ShmHeader* header_ = nullptr;
     HookRecord* records_ = nullptr;
     uint32_t last_seen_dropped_ = 0;
+    uint32_t last_seen_shard_dropped_[kShmMaxShards] = {};
 };
 
 }  // namespace linux_native_hook_v1
