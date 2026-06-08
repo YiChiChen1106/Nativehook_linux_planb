@@ -1203,7 +1203,6 @@ void HookWriter::FlushStackWriterBatch()
     stack_writer_.WriteLocked(g_sw_batch.records.data(), g_sw_batch.count, false);
     stack_writer_.Unlock();
 
-    const uint32_t flushed_count = g_sw_batch.count;
     g_sw_batch.count = 0;
 
     const int sub = GetSubAblationStage();

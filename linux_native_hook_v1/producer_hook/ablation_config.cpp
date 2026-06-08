@@ -242,4 +242,37 @@ uint32_t GetStackWriterBatchSize()
     return static_cast<uint32_t>(g_cached_stack_writer_batch_size.load(std::memory_order_acquire));
 }
 
+constexpr int kUnsetLockDelayNs = -1;
+std::atomic<int> g_cached_lock_delay_ns {kUnsetLockDelayNs};
+
+uint32_t ParseLockDelayNsFromEnv()
+{
+    const char* text = std::getenv("LNHV1_LOCK_DELAY_NS");
+    if (text == nullptr || text[0] == '\0') {
+        return 0;
+    }
+
+    char* end_ptr = nullptr;
+    const unsigned long value = std::strtoul(text, &end_ptr, 10);
+    if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0' || value > 1000000) {
+        return 0;
+    }
+
+    return static_cast<uint32_t>(value);
+}
+
+uint32_t GetLockDelayNs()
+{
+    int delay = g_cached_lock_delay_ns.load(std::memory_order_acquire);
+    if (delay != kUnsetLockDelayNs) {
+        return static_cast<uint32_t>(delay);
+    }
+
+    const int parsed_delay = static_cast<int>(ParseLockDelayNsFromEnv());
+    int expected = kUnsetLockDelayNs;
+    g_cached_lock_delay_ns.compare_exchange_strong(
+        expected, parsed_delay, std::memory_order_release, std::memory_order_relaxed);
+    return static_cast<uint32_t>(g_cached_lock_delay_ns.load(std::memory_order_acquire));
+}
+
 }  // namespace linux_native_hook_v1

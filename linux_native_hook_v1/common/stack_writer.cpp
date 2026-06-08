@@ -4,6 +4,8 @@
 
 #include <unistd.h>
 
+#include "producer_hook/ablation_config.h"
+
 namespace linux_native_hook_v1 {
 
 bool StackWriter::Write(const HookRecord* records, uint32_t record_count)
@@ -44,6 +46,15 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
     for (uint32_t i = 0; i < writable_count; ++i) {
         records_[(write_index + i) % capacity] = records[i];
     }
+
+    const uint32_t lock_delay_ns = GetLockDelayNs();
+    if (lock_delay_ns > 0) {
+        volatile uint64_t delay = lock_delay_ns * 10;
+        while (delay--) {
+            __asm__ volatile("" ::: "memory");
+        }
+    }
+
     const uint32_t next_write = (write_index + writable_count) % capacity;
     AtomicStoreU32(&header_->write_index, next_write);
     pending_count_ += writable_count;

@@ -93,7 +93,11 @@ private:
     void WaitUntilDrainedLocked() const;
     bool BufferStage6Record(const HookRecord& record, uint32_t batch_size);
     bool FlushStage6Batch(bool allow_notify);
+
+public:
     void FlushStackWriterBatch();
+
+private:
     bool WriteRecordsLocked(
         const HookRecord* records,
         uint32_t record_count,
