@@ -15,6 +15,9 @@ bool StackWriter::Write(const HookRecord* records, uint32_t record_count)
 
 bool StackWriter::Write(const HookRecord* records, uint32_t record_count, bool self_drain)
 {
+    if (GetLockFreeRingEnabled()) {
+        return WriteLocked(records, record_count, self_drain);
+    }
     pthread_mutex_lock(&inner_mutex_);
     const bool ret = WriteLocked(records, record_count, self_drain);
     pthread_mutex_unlock(&inner_mutex_);
@@ -31,19 +34,45 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
     }
 
     const uint32_t capacity = header_->capacity;
-    const uint32_t write_index = AtomicLoadU32(&header_->write_index);
-    const uint32_t read_index = AtomicLoadU32(&header_->read_index);
-    const uint32_t used = (write_index >= read_index)
-        ? (write_index - read_index)
-        : (capacity - read_index + write_index);
-    const uint32_t available = (capacity > used) ? (capacity - used - 1) : 0;
-    const uint32_t writable_count = (record_count <= available) ? record_count : available;
-    if (writable_count == 0) {
-        AtomicFetchAddU32(&header_->dropped, record_count);
-        return false;
+    const bool lock_free = GetLockFreeRingEnabled();
+
+    uint32_t write_index;
+    if (lock_free) {
+        // CAS loop to claim space in the ring buffer.
+        // Simulates per-CPU ringbuf: no sleeping mutex, just atomic contention.
+        uint32_t read_index;
+        uint32_t next_write;
+        do {
+            write_index = AtomicLoadU32(&header_->write_index);
+            read_index = AtomicLoadU32(&header_->read_index);
+            const uint32_t used = (write_index >= read_index)
+                ? (write_index - read_index)
+                : (capacity - read_index + write_index);
+            const uint32_t available = (capacity > used) ? (capacity - used - 1) : 0;
+            if (available < record_count) {
+                AtomicFetchAddU32(&header_->dropped, record_count);
+                return false;
+            }
+            next_write = (write_index + record_count) % capacity;
+        } while (!__atomic_compare_exchange_n(&header_->write_index, &write_index,
+                 next_write, false, __ATOMIC_RELEASE, __ATOMIC_RELAXED));
+    } else {
+        write_index = AtomicLoadU32(&header_->write_index);
+        const uint32_t read_index = AtomicLoadU32(&header_->read_index);
+        const uint32_t used = (write_index >= read_index)
+            ? (write_index - read_index)
+            : (capacity - read_index + write_index);
+        const uint32_t available = (capacity > used) ? (capacity - used - 1) : 0;
+        const uint32_t writable_count = (record_count <= available) ? record_count : available;
+        if (writable_count == 0) {
+            AtomicFetchAddU32(&header_->dropped, record_count);
+            return false;
+        }
+        // In mutex mode, we may write fewer than requested.
+        record_count = writable_count;
     }
 
-    for (uint32_t i = 0; i < writable_count; ++i) {
+    for (uint32_t i = 0; i < record_count; ++i) {
         records_[(write_index + i) % capacity] = records[i];
     }
 
@@ -55,22 +84,20 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
         }
     }
 
-    const uint32_t next_write = (write_index + writable_count) % capacity;
-    AtomicStoreU32(&header_->write_index, next_write);
-    pending_count_ += writable_count;
-    if (self_drain) {
-        AtomicStoreU32(&header_->read_index, next_write);
-        pending_count_ = 0;
-        if (writable_count < record_count) {
-            AtomicFetchAddU32(&header_->dropped, record_count - writable_count);
-        }
-        return writable_count == record_count;
-    }
-    if (writable_count < record_count) {
-        AtomicFetchAddU32(&header_->dropped, record_count - writable_count);
+    // In lock-free mode, write_index was already advanced by CAS.
+    if (!lock_free) {
+        const uint32_t next_write = (write_index + record_count) % capacity;
+        AtomicStoreU32(&header_->write_index, next_write);
     }
 
-    return writable_count == record_count;
+    pending_count_ += record_count;
+    if (self_drain) {
+        const uint32_t next_write = (write_index + record_count) % capacity;
+        AtomicStoreU32(&header_->read_index, next_write);
+        pending_count_ = 0;
+    }
+
+    return true;
 }
 
 bool StackWriter::PrepareFlush()
