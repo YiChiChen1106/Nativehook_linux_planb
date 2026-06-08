@@ -52,7 +52,7 @@ bool ShmConsumer::CreateAndMap(const std::string& shm_name, uint32_t capacity)
     return true;
 }
 
-bool ShmConsumer::ConsumeAvailable(Metrics* metrics)
+bool ShmConsumer::ConsumeAvailable(Metrics* metrics, bool verbose)
 {
     if (header_ == nullptr || metrics == nullptr) {
         return false;
@@ -74,6 +74,16 @@ bool ShmConsumer::ConsumeAvailable(Metrics* metrics)
             ++alloc_count;
         } else if (record.type == static_cast<uint16_t>(HookEventType::kFree)) {
             ++free_count;
+        }
+        if (verbose) {
+            std::printf("VERBOSE,%u,%u,%lu,%lu,%lu,%ld,%ld\n",
+                static_cast<unsigned>(record.type),
+                static_cast<unsigned>(record.tid),
+                static_cast<unsigned long>(record.addr),
+                static_cast<unsigned long>(record.size),
+                static_cast<unsigned long>(record.pid),
+                static_cast<long>(record.ts.tv_sec),
+                static_cast<long>(record.ts.tv_nsec));
         }
         read_index = (read_index + 1) % capacity;
         ++batch_count;

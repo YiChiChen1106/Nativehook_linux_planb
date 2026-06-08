@@ -15,7 +15,7 @@ public:
     ~ShmConsumer();
 
     bool CreateAndMap(const std::string& shm_name, uint32_t capacity);
-    bool ConsumeAvailable(Metrics* metrics);
+    bool ConsumeAvailable(Metrics* metrics, bool verbose = false);
 
     int shm_fd() const { return shm_fd_; }
     uint32_t capacity() const { return header_ == nullptr ? 0 : header_->capacity; }

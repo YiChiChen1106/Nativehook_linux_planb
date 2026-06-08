@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <pthread.h>
@@ -8,7 +9,9 @@
 #include <unordered_set>
 
 #include "common/shm_layout.h"
+#include "common/stack_writer.h"
 #include "common/unix_defs.h"
+#include "producer_hook/hook_socket_client.h"
 
 namespace linux_native_hook_v1 {
 
@@ -40,6 +43,7 @@ private:
 
     bool EnsureConnectedLocked();
     bool EnsureConnectedWithWriterLock();
+    bool EnsureConnectedForImpactSubAblation();
     bool HasConnectionWithWriterLock();
     bool ShouldRecordAllocLocked(size_t size);
     bool HasTrackedAllocLocked(uint64_t addr) const;
@@ -71,17 +75,46 @@ private:
     bool RecordWriteSubAblationAllocThreadLocal(
         bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
     bool RecordWriteSubAblationFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage);
+    bool RecordStage6WriterRingImpactAllocThreadLocal(
+        bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordStage6WriterRingImpactFreeThreadLocal(bool use_fallback, void* ptr, int sub_ablation_stage);
+    bool RecordStackWriterSubAblationAllocThreadLocal(
+        bool use_fallback, void* ptr, size_t size, int sub_ablation_stage);
+    bool RecordStackWriterSubAblationFreeThreadLocal(
+        bool use_fallback, void* ptr, int sub_ablation_stage);
     bool RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t size, int ablation_stage);
     bool RecordFreeThreadLocal(bool use_fallback, void* ptr, int ablation_stage);
     bool WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage);
+    bool WriteStage6WriterRingImpactLocked(const HookRecord& record, int sub_ablation_stage);
     void FillRecordForSubAblationLocked(
         HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage);
+    void FillStage6OptimizedRecord(HookRecord* record, HookEventType type, uint64_t addr, uint64_t size);
     void MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
-    bool WriteRecordLocked(const HookRecord& record, bool allow_notify, bool self_drain);
-    void NotifyLocked();
+    bool BufferStage6Record(const HookRecord& record, uint32_t batch_size);
+    bool FlushStage6Batch(bool allow_notify);
 
+public:
+    void FlushStackWriterBatch();
+
+private:
+    bool WriteRecordsLocked(
+        const HookRecord* records,
+        uint32_t record_count,
+        bool allow_notify,
+        bool self_drain,
+        bool* notify_after_unlock = nullptr);
+    bool WriteRecordLocked(
+        const HookRecord& record,
+        bool allow_notify,
+        bool self_drain,
+        bool* notify_after_unlock = nullptr);
+    void NotifyLocked();
+    bool NotifyEventFd();
+
+    StackWriter stack_writer_;
+    HookSocketClient hook_socket_client_;
     pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
     int control_fd_ = -1;
     int shm_fd_ = -1;
@@ -97,6 +130,7 @@ private:
     int32_t filter_size_ = kDefaultFilterSize;
     bool is_blocked_ = false;
     const char* socket_path_ = nullptr;
+    std::atomic<bool> connected_fast_path_ {false};
     std::unordered_set<uint64_t> tracked_allocations_;
     std::array<TrackingShard, kTrackingShardCount> tracking_shards_;
     std::array<OwnershipShard, kTrackingShardCount> ownership_shards_;

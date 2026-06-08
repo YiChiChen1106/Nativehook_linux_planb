@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace linux_native_hook_v1 {
 
 constexpr int kAblationStageHookEntry = 1;
@@ -38,17 +40,32 @@ constexpr int kWriterRingSubStageThreadNameNoRing = 24;
 constexpr int kWriterRingSubStageRingIndexCheck = 25;
 constexpr int kWriterRingSubStageShmRecordCopy = 26;
 constexpr int kWriterRingSubStageAtomicIndexSelfDrain = 27;
-constexpr int kMaxSubAblationStage = kWriterRingSubStageAtomicIndexSelfDrain;
+constexpr int kStage6WriterRingSubStageNoWriterRing = 28;
+constexpr int kStage6WriterRingSubStageWriterMutexOnly = 29;
+constexpr int kStage6WriterRingSubStageRingIndexCheck = 30;
+constexpr int kStage6WriterRingSubStageRecordCopyNoPublish = 31;
+constexpr int kStage6WriterRingSubStageAtomicPublishNoNotify = 32;
+constexpr int kStage6WriterRingSubStageFullNotify = 33;
+
+constexpr int kStackWriterSubStageWriteOnly = 34;
+constexpr int kStackWriterSubStageFlushOnly = 35;
+constexpr int kStackWriterSubStageFull = 36;
+constexpr int kMaxSubAblationStage = kStackWriterSubStageFull;
 
 constexpr int kTrackingModeGlobal = 0;
 constexpr int kTrackingModeSharded = 1;
 constexpr int kTrackingModeThreadLocalFallback = 2;
 constexpr int kTrackingModeThreadLocalOnly = 3;
+constexpr uint32_t kMaxStage6BatchSize = 64;
 
 int GetAblationStage();
 int GetSubAblationStage();
 bool GetPidTidCacheEnabled();
 int GetTrackingMode();
 bool GetHotpathProfileEnabled();
+uint32_t GetStage6BatchSize();
+uint32_t GetStackWriterBatchSize();
+uint32_t GetLockDelayNs();
+bool GetClientLockEnabled();
 
 }  // namespace linux_native_hook_v1

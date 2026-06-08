@@ -10,6 +10,7 @@ find_package(Threads REQUIRED)
 
 add_library(linux_native_hook_common
     common/socket_fd.cpp
+    common/stack_writer.cpp
 )
 
 set_target_properties(linux_native_hook_common PROPERTIES
@@ -100,6 +101,22 @@ target_link_libraries(cross_thread_free_linux
         Threads::Threads
 )
 
+add_executable(batch_semantic_test
+    tests/batch_semantic_test.cpp
+)
+
+target_compile_options(batch_semantic_test
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
+target_link_libraries(batch_semantic_test
+    PRIVATE
+        Threads::Threads
+)
+
 add_executable(ablation_config_test
     tests/ablation_config_test.cpp
     producer_hook/ablation_config.cpp
@@ -134,6 +151,9 @@ set_tests_properties(ablation_config_sub_ablation_stage_21 PROPERTIES
 add_test(NAME ablation_config_sub_ablation_stage_27 COMMAND ablation_config_test sub_ablation 27)
 set_tests_properties(ablation_config_sub_ablation_stage_27 PROPERTIES
     ENVIRONMENT "LNHV1_SUBABLATION_STAGE=27")
+add_test(NAME ablation_config_sub_ablation_stage_33 COMMAND ablation_config_test sub_ablation 33)
+set_tests_properties(ablation_config_sub_ablation_stage_33 PROPERTIES
+    ENVIRONMENT "LNHV1_SUBABLATION_STAGE=33")
 add_test(NAME ablation_config_tracking_mode_default COMMAND ablation_config_test tracking_mode 0)
 add_test(NAME ablation_config_tracking_mode_global COMMAND ablation_config_test tracking_mode 0)
 set_tests_properties(ablation_config_tracking_mode_global PROPERTIES
@@ -160,6 +180,16 @@ set_tests_properties(ablation_config_hotpath_profile_enabled PROPERTIES
 add_test(NAME ablation_config_hotpath_profile_invalid COMMAND ablation_config_test hotpath_profile 0)
 set_tests_properties(ablation_config_hotpath_profile_invalid PROPERTIES
     ENVIRONMENT "LNHV1_HOTPATH_PROFILE=invalid")
+add_test(NAME ablation_config_stage6_batch_size_default COMMAND ablation_config_test stage6_batch_size 0)
+add_test(NAME ablation_config_stage6_batch_size_enabled COMMAND ablation_config_test stage6_batch_size 8)
+set_tests_properties(ablation_config_stage6_batch_size_enabled PROPERTIES
+    ENVIRONMENT "LNHV1_STAGE6_BATCH_SIZE=8")
+add_test(NAME ablation_config_stage6_batch_size_invalid COMMAND ablation_config_test stage6_batch_size 0)
+set_tests_properties(ablation_config_stage6_batch_size_invalid PROPERTIES
+    ENVIRONMENT "LNHV1_STAGE6_BATCH_SIZE=invalid")
+add_test(NAME ablation_config_stage6_batch_size_too_large COMMAND ablation_config_test stage6_batch_size 0)
+set_tests_properties(ablation_config_stage6_batch_size_too_large PROPERTIES
+    ENVIRONMENT "LNHV1_STAGE6_BATCH_SIZE=65")
 
 add_library(hook_preload SHARED
     producer_hook/ablation_config.cpp
