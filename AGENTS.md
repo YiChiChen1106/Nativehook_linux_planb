@@ -111,8 +111,26 @@ ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no cychi@10.87.235.29 \
 
 ## Current Branch Commit Stack
 
-Above `main`:
+`optimize/writer-ring-sharded-batch` above `main` (12 commits, 2026-06-08):
+
+Deadlock fix & ablation data:
 - `e19571b` Fix sub-stage 36 deadlock: remove double-lock on StackWriter inner_mutex_
+- `3c33e3c` Update docs: sub-stage 36 fix & work log entry
+- `61b194d` Update docs: sub-stage 34/35 new benchmark data after deadlock fix
+- `69de811` Add sub-stage 36 full chain benchmark data
+
+Experiments:
+- `f0bd79a` Add StackWriter batch publish experiment (**negative result**)
+- `4aa70b1` Add eventfd flush threshold optimization for StackWriter (~4%)
+- `5ab84a2` Route free path through StackWriter for sub-stage 34/35/36
+
+Docs:
+- `ff6c837` Add work log 2026-06-05
+- `b8ab30a` Rewrite work log 2026-06-05 as comprehensive 6/4-6/5 record
+- `f80f867` Update work log: eventfd flush threshold optimization results
+- `18c3ee0` Add three-repo workflow and repository map to AGENTS.md
+
+Earlier commits:
 - `8d82a43` Add native hook handoff note
 - `4adf450` Add Stage 6 batch publish experiment
 - `1b3ec69` Move record fill outside writer mutex
@@ -159,21 +177,61 @@ Current result (batch64 vs no-batch):
 | 8 | 3.121s | 1.278s | 59.1% |
 | 16 | 3.408s | 1.340s | 60.7% |
 
-## Current Next Step: Realign Prototype with OpenHarmony Architecture
+## Current Status & Next Steps
 
-1. Draw and maintain the hot-path mapping table (see Optimization Methodology section above)
-2. Refactor prototype to add missing structural equivalents:
-   - `stack_writer` layer (separate from `hook_writer`)
-   - `address_handler` equivalent (bitmap or hash-based tracking)
-   - `hook_socket_client` equivalent (connection management)
-3. After alignment, re-evaluate which Plan B optimizations are port-viable and benchmark on pink
-4. Coordinate with OpenHarmony dev team to build & benchmark the GitLab fork
+### Alignment Status
 
-Do NOT redo without explicit request:
+Hot-path mapping table (prototype ↔ real OH):
+
+```
+                          Prototype              Real (hook_client.cpp)    Status
+────────────────────────────────────────────────────────────────────────────────
+ malloc/filter/sample     ✅ hook_writer         ✅ hook_malloc             aligned
+ re-entry guard           ✅ HookReentryGuard    ✅ __set_hook_flag         aligned
+ FpUnwind stack walk      ❌ missing             ✅ FpUnwind()              x86 can't do
+ GetStackSize             ❌ missing             ✅ GetStackSize()          x86 can't do
+ StackRawData fill        ⚠️ simplified          ✅ rawdata                 simplified
+ record size calc         ⚠️ simplified          ✅ realSize                simplified
+ client lock              ❌ missing             ✅ weakClient.lock()       see note
+ UpdateThreadName         ❌ missing             ✅ UpdateThreadName()      in HookWriter
+ AddressHandler tracking  ⚠️ stub (header only)  ✅ AddAllocAddr()          not wired
+ StackWriter write/flush  ✅ stack_writer.cpp    ✅ WriteWithPayloadTimeout aligned
+ notify                   ✅ NotifyEventFd       ✅ PrepareFlush/Flush      aligned
+```
+
+Notes:
+- `address_handler.h` exists as abstract interface but is not wired into the hot path.
+  Thread-local `unordered_set` in HookWriter serves the same purpose.
+- `client lock` (`weakClient.lock()`) was not implemented as a separate layer.
+  HookWriter's `mutex_` and StackWriter's `inner_mutex_` jointly cover this.
+- Items marked `❌ missing` or `⚠️ simplified` that involve aarch64-specific
+  functionality (FpUnwind, etc.) cannot be replicated in the x86 prototype.
+
+### Ablation Sub-stage Map
+
+| Sub | Name | Measures | Status |
+|---|---|---|---|
+| 28-33 | Writer/Ring impact | HookWriter layer overhead | ✅ done |
+| 34 | write_only | StackWriter ring write + inner_mutex_ | ✅ 0.28s (1T) |
+| 35 | flush_only | 34 + eventfd syscall | ✅ 0.82s (1T) |
+| 36 | full | 35 + consumer drain | ✅ 0.84s (1T) |
+
+### Remaining Directions
+
+Priority order:
+
+1. **Consumer ablation** — Break down sub=36's consumer drain (eventfd read, ring traversal, read_index update). Currently a black box at ~0.03s total.
+2. **Simulate longer critical section** — Prototype's ring write is ~25ns; real ShareMemoryBlock may be heavier with FpUnwind data memcpy. Add a configurable delay to inner_mutex_ critical section to assess contention at realistic scales.
+3. **Real code compilation** — Blocked on OH SDK. Once available, build the GitLab fork and validate ported optimizations.
+
+### Do NOT Redo
+
 - No new eBPF experiments
 - No pid/tid cache experiments (redundant — real code already does this)
 - No tracking backend experiments (no equivalent in real code)
 - No sample/filter sweeps
+- No StackWriter batch publish (proven ineffective)
+- No lock-free ring buffer (inner_mutex_ too light to justify complexity)
 
 ## Optimization Methodology: Prototype-Real Alignment
 
