@@ -156,11 +156,11 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   s.addShape("rect", { x: 6.8, y: 3.65, w: 6.0, h: 1.4, fill: { color: K.white }, rectRadius: 0.08, shadow: { type: "outer", blur: 3, offset: 1, color: "000000", opacity: 0.04 } });
   s.addText("根因", { x: 7.0, y: 3.7, w: 5.6, h: 0.3, fontSize: 11, bold: true, color: K.muted });
   s.addText("外层 Lock() + Write() 内部重复加锁同一非递归互斥锁", { x: 7.0, y: 3.95, w: 5.6, h: 0.35, fontSize: 13, color: K.dark });
-  s.addText("→ POSIX 未定义行为 → 采集的数据无意义 → 全部作废重采", { x: 7.0, y: 4.3, w: 5.6, h: 0.35, fontSize: 12, color: K.red });
+  s.addText("→ POSIX 未定义行为 → 子阶段 34/35 旧数据作废重采", { x: 7.0, y: 4.3, w: 5.6, h: 0.35, fontSize: 12, color: K.red });
   s.addText("修复：去掉外层多余的 Lock/Unlock，Write() 内部已有锁", { x: 7.0, y: 4.65, w: 5.6, h: 0.3, fontSize: 11, color: K.muted });
 
   // Bottom callout
-  calloutBox(s, "修复后全部 ablation 数据在 pink 重新采集 · 旧数据不再使用", 0.55, 5.5, 12.3, K.blue, K.blueBg);
+  calloutBox(s, "子阶段 28-33 不受影响（HookWriter 锁）· 34/35 数据已修复重采", 0.55, 5.5, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 3: Ablation Data ---
