@@ -3,7 +3,7 @@ import PptxGenJS from "pptxgenjs";
 const pptx = new PptxGenJS();
 pptx.layout = "LAYOUT_WIDE";
 pptx.author = "陈一驰";
-pptx.title = "native_hook Progress — 2026.06.11";
+pptx.title = "native_hook 优化进展 — 2026.06.11";
 
 // ---- Color system ----
 const K = {
@@ -106,7 +106,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   s.addShape("rect", { x: 0, y: 0, w: 13.33, h: 7.5, fill: { color: K.navy } });
   s.addShape("rect", { x: 0, y: 0, w: 13.33, h: 0.06, fill: { color: K.blue } });
   s.addText("native_hook Producer 端", { x: 0.5, y: 1.6, w: 12.3, h: 1.0, fontSize: 40, bold: true, color: K.white, align: "center" });
-  s.addText("优化进展与 Sharded Ring 提案", { x: 0.5, y: 2.5, w: 12.3, h: 0.8, fontSize: 28, color: "93C5FD", align: "center" });
+  s.addText("优化进展与分片环形区提案", { x: 0.5, y: 2.5, w: 12.3, h: 0.8, fontSize: 28, color: "93C5FD", align: "center" });
   s.addShape("rect", { x: 4.5, y: 3.6, w: 4.3, h: 0.03, fill: { color: "334155" } });
   s.addText("组会汇报  ·  2026.06.11  ·  陈一驰", { x: 0.5, y: 3.9, w: 12.3, h: 0.5, fontSize: 14, color: K.muted, align: "center" });
 }
@@ -114,14 +114,14 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 2: Feedback + Deadlock ---
 {
   const s = pptx.addSlide();
-  header(s, 2, "上次反馈闭环 + Sub-stage 36 死锁修复");
+  header(s, 2, "上次反馈闭环 + 子阶段 36 死锁修复");
   bullets(s, [
     { text: "上次四个问题全部闭环", highlight: true },
-    "热点定位 → batch publish 解决；perf 分析 → ablation sub-stage 替代",
+    "热点定位 → 批量发布解决；perf 分析 → 逐层拆解替代",
     "Gitee fork 到公司 GitLab（yt_nativehook + cyc_nativehook）",
     "eBPF 高线程数据补充：8T/16T 下 eBPF 反超 2.5~3x",
     { text: "Sub-stage 36 死锁修复", highlight: true },
-    "根因：stack_writer_.Lock() + Write() 内部 pthread_mutex_lock 同一非递归 mutex",
+    "根因：外层 Lock() + Write() 内部重复加锁同一非递归互斥锁 = 未定义行为",
     "修复：删除外层 Lock/Unlock，commit e19571b",
     "旧数据作废：double-lock UB 导致 31x 性能退化（8.60s → 0.28s）",
   ], 1.4);
@@ -133,16 +133,16 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   header(s, 3, "StackWriter 三层拆解", "固定 100 万次 mixed3 迭代，per-record 模式，修复后重采集");
   let y = 1.4;
   table(s, [
-    ["sub-stage", "含义", "1T", "4T", "8T", "16T"],
-    ["34 write_only", "ring write + inner_mutex_", "0.28s", "0.35s", "0.59s", "0.73s"],
-    ["35 flush_only", "+ eventfd 通知", "0.82s", "0.71s", "0.76s", "0.81s"],
-    ["36 full", "+ consumer drain", "0.84s", "0.79s", "0.85s", "0.88s"],
+    ["子阶段", "含义", "1 线程", "4 线程", "8 线程", "16 线程"],
+    ["34 纯写入", "环形写入 + 内部锁", "0.28s", "0.35s", "0.59s", "0.73s"],
+    ["35 加通知", "+ eventfd 系统调用", "0.82s", "0.71s", "0.76s", "0.81s"],
+    ["36 全链路", "+ 消费者消费", "0.84s", "0.79s", "0.85s", "0.88s"],
   ], { y: 1.4 });
   // Metric boxes
-  metricBox(s, "ring write 内锁", "0.28s", "sub=34 · 1T", 0.55, 3.5, K.blue);
-  metricBox(s, "eventfd syscall", "0.54s", "sub=35-34 delta", 3.4, 3.5, K.orange);
-  metricBox(s, "consumer drain", "0.03s", "sub=36-35 delta", 6.25, 3.5, K.green);
-  metricBox(s, "16T 竞争退化", "2.6×", "sub=34 16T/1T", 9.1, 3.5, K.purple);
+  metricBox(s, "环形写入内锁", "0.28s", "子阶段 34 · 单线程", 0.55, 3.5, K.blue);
+  metricBox(s, "eventfd 系统调用", "0.54s", "子阶段 35-34 差值", 3.4, 3.5, K.orange);
+  metricBox(s, "消费者消费", "0.03s", "子阶段 36-35 差值", 6.25, 3.5, K.green);
+  metricBox(s, "16 线程竞争退化", "2.6×", "子阶段 34 · 16线/单线", 9.1, 3.5, K.purple);
 }
 
 // --- Slide 4: Negative Experiments ---
@@ -151,7 +151,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   header(s, 4, "三项否定实验", "均指向同一结论：共享状态是根因，换锁不够");
   table(s, [
     [  "实验", "方法", "结果", "根因"],
-    ["StackWriter\nbatch publish", "per-thread buffer\nbatch write 4~64", "全在噪声范围\n无效果", "inner_mutex_ 临界区\n仅 ~25ns"],
+    ["StackWriter\n批量发布", "线程本地缓冲\n批量写入 4~64", "全在噪声范围\n无效果", "内部锁临界区\n仅 ~25 纳秒"],
     ["锁延迟模拟\nLNHV1_LOCK_DELAY_NS", "临界区注入\nbusy-wait 0→1000ns", "16T/1T 始终 ~3x\n无恶化", "锁持有时间\n不是瓶颈"],
     ["CAS 锁替换\nLNHV1_LOCK_FREE_RING", "CAS 替代\npthread_mutex_t", "4T: +32%\n8T+: 无效果", "CAS retry 的 cache\nline bouncing = mutex"],
   ], { y: 1.4, rowH: 0.85, headerRows: 1 });
