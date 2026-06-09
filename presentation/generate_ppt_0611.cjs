@@ -123,7 +123,6 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   const feedback = [
     { num: "1", title: "热点定位", desc: "ring 共享状态竞争 → 批量发布解决" },
     { num: "2", title: "代码移植", desc: "Gitee fork 到公司 GitLab 并完成" },
-    { num: "3", title: "eBPF 数据", desc: "补 8T/16T，高线程反超 2.5~3x" },
   ];
   feedback.forEach((f, i) => {
     const y = 1.95 + i * 0.65;
