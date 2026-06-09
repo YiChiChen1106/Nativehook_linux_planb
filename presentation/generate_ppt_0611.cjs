@@ -118,7 +118,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   bullets(s, [
     { text: "上次四个问题全部闭环", highlight: true },
     "热点定位 → 批量发布解决；perf 分析 → 逐层拆解替代",
-    "Gitee fork 到公司 GitLab（yt_nativehook + cyc_nativehook）",
+    "Gitee fork 到公司 GitLab 并完成移植",
     "eBPF 高线程数据补充：8T/16T 下 eBPF 反超 2.5~3x",
     { text: "Sub-stage 36 死锁修复", highlight: true },
     "根因：外层 Lock() + Write() 内部重复加锁同一非递归互斥锁 = 未定义行为",
@@ -241,7 +241,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 9: OH Code Change ---
 {
   const s = pptx.addSlide();
-  header(s, 9, "OH 代码改动提案", "已在 cyc_nativehook / yt_nativehook 上用 SHARDED_RING: 标注");
+  header(s, 9, "OH 代码改动提案", "已在 OH 仓库源码上用 SHARDED_RING: 标注");
 
   table(s, [
     ["位置", "当前实现", "改为"],
@@ -312,8 +312,8 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   header(s, 12, "后续计划");
 
   const steps = [
-    { num: "01", title: "真实代码编译验证", desc: "OH SDK 环境到位后\n在 cyc_nativehook 上编译验证 sharded ring" },
-    { num: "02", title: "团队 Review", desc: "基于 SHARDED_RING: 标注\n在 yt_nativehook 上提交 MR" },
+    { num: "01", title: "真实代码编译验证", desc: "OH SDK 环境到位后\n编译验证分片方案" },
+    { num: "02", title: "团队评审", desc: "基于 SHARDED_RING: 标注\n在团队仓库提交合并请求" },
     { num: "03", title: "性能验证", desc: "编译通过后在真实设备\n跑 benchmark 对比原型数据" },
   ];
 
