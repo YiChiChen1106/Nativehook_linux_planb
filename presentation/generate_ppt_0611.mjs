@@ -364,20 +364,61 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 9: OH Code Change ---
 {
   const s = pptx.addSlide();
-  header(s, 9, "OH 代码改动提案", "已在 OH 仓库源码上用 SHARDED_RING: 标注");
+  header(s, 9, "OH 代码改动提案", "三个改动点 · 集中在 StackWriter 层 · 不影响上层 hook 函数");
 
-  table(s, [
-    ["位置", "当前实现", "改为"],
-    ["hook_client.cpp:628\nSendStackWithPayload", "addr % g_sharedMemCount\n(地址分片)", "tid % g_sharedMemCount\n(TID 分片) + thread_local 缓存"],
-    ["stack_writer.cpp:89\nPutWithPayloadTimeout", "单 ring 写入\n内部 mutex", "新增 shard_idx 参数\nShareMemoryBlock 按 shard 无锁写"],
-    ["stack_writer.cpp:94\nPrepareFlush / Flush", "全局 dataCount_\nglobal flushCount_", "每 shard 独立计数器\n汇总后 Post 一次"],
-  ], { y: 1.5, rowH: 0.95 });
+  function box(x, y, w, h, text, bg, tc = K.dark, fs = 10) {
+    s.addShape("rect", { x, y, w, h, fill: { color: bg }, rectRadius: 0.05, line: { color: K.border, pt: 0.5 } });
+    s.addText(text, { x, y, w, h, fontSize: fs, color: tc, align: "center", valign: "middle", fontFace: "Arial" });
+  }
+  function marker(n, x, y, c) {
+    s.addShape("ellipse", { x, y, w: 0.28, h: 0.28, fill: { color: c } });
+    s.addText(String(n), { x, y, w: 0.28, h: 0.28, fontSize: 9, bold: true, color: K.white, align: "center", valign: "middle", fontFace: "Consolas" });
+  }
 
-  bullets(s, [
-    { text: "改动集中在 StackWriter 层，不影响上层 hook_malloc/hook_free 等函数", highlight: true },
-    "兼容性：num_shards=0 时保持现有行为，向后兼容",
-    "等待 OH SDK 环境到位后编译验证",
-  ], 5.2);
+  // === TOP ROW: Current ===
+  s.addText("当前：地址分片", { x: 0.5, y: 1.35, w: 3, h: 0.3, fontSize: 12, bold: true, color: K.muted });
+  const flowY = 1.7, flowH = 0.5, gap = 0.25;
+  let x = 0.4;
+  box(x, flowY, 1.8, flowH, "hook_malloc\nFpUnwind + fill", K.blueBg); x += 1.8 + gap;
+  s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY, 2.0, flowH, "SendStackWithPayload\naddr % N → Block", K.white); marker(1, x + 0.1, flowY - 0.14, K.red); x += 2.0 + gap;
+  s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY, 1.8, flowH, "ShareMemoryBlock\n内部全局锁", K.orangeBg, K.orange); marker(2, x + 0.1, flowY - 0.14, K.red); x += 1.8 + gap;
+  s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY, 2.0, flowH, "PrepareFlush / Flush\nglobal counter → Post", K.white); marker(3, x + 0.1, flowY - 0.14, K.red); x += 2.0 + gap;
+  s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY, 2.2, flowH, "Consumer\n单个环形区遍历", K.greenBg);
+
+  // === ARROW between ===
+  s.addText("↓", { x: 6.2, y: 2.4, w: 0.8, h: 0.35, fontSize: 18, color: K.blue, align: "center", valign: "middle" });
+
+  // === BOTTOM ROW: Proposed ===
+  s.addText("改为：线程分片", { x: 0.5, y: 2.8, w: 3, h: 0.3, fontSize: 12, bold: true, color: K.green });
+  x = 0.4; const flowY2 = 3.15;
+  box(x, flowY2, 1.8, flowH, "hook_malloc\nFpUnwind + fill", K.blueBg); x += 1.8 + gap;
+  s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY2, 2.0, flowH, "SendStackWithPayload\ntid % N → Block[shard]", K.greenBg, K.green); marker(1, x + 0.1, flowY2 - 0.14, K.green); x += 2.0 + gap;
+  s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY2, 1.8, flowH, "ShareMemoryBlock\nshard 内无锁写入", K.greenBg, K.green); marker(2, x + 0.1, flowY2 - 0.14, K.green); x += 1.8 + gap;
+  s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY2, 2.0, flowH, "PrepareFlush / Flush\nper-shard counter → Post", K.greenBg, K.green); marker(3, x + 0.1, flowY2 - 0.14, K.green); x += 2.0 + gap;
+  s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
+  box(x, flowY2, 2.2, flowH, "Consumer\n轮询所有分片", K.greenBg);
+
+  // === Legend ===
+  const LY = 4.1;
+  const legend = [
+    { n: 1, t: "hook_client.cpp:628 — addr % N → tid % N + thread_local 缓存 TID", c: K.green },
+    { n: 2, t: "stack_writer.cpp:89 — PutWithPayloadTimeout 新增 shard_idx 参数，内部无锁", c: K.green },
+    { n: 3, t: "stack_writer.cpp:94 — PrepareFlush/Flush 每 shard 独立计数，汇总 Post", c: K.green },
+  ];
+  legend.forEach((l, i) => {
+    const ly = LY + i * 0.45;
+    marker(l.n, 0.7, ly + 0.06, l.c);
+    s.addText(l.t, { x: 1.15, y: ly, w: 11, h: 0.4, fontSize: 11, color: K.body, valign: "middle" });
+  });
+
+  calloutBox(s, "改动集中在 StackWriter 层 · 不影响 hook_malloc/hook_free · num_shards=0 时向后兼容", 0.55, 5.9, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 10: Summary Table ---
