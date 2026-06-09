@@ -118,18 +118,18 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 
   // === LEFT PANEL: 上次反馈 ===
   s.addShape("rect", { x: 0.5, y: 1.35, w: 5.9, h: 0.45, fill: { color: K.blueBg }, rectRadius: 0.05 });
-  s.addText("上次组会四个问题全部闭环", { x: 0.7, y: 1.35, w: 5.5, h: 0.45, fontSize: 13, bold: true, color: K.blue, valign: "middle" });
+  s.addText("上次组会遗留问题闭环", { x: 0.7, y: 1.35, w: 5.5, h: 0.45, fontSize: 13, bold: true, color: K.blue, valign: "middle" });
 
   const feedback = [
     { num: "1", title: "热点定位", desc: "ring 共享状态竞争 → 批量发布解决" },
     { num: "2", title: "代码移植", desc: "Gitee fork 到公司 GitLab 并完成" },
   ];
   feedback.forEach((f, i) => {
-    const y = 1.95 + i * 0.65;
-    s.addShape("rect", { x: 0.55, y, w: 0.4, h: 0.4, fill: { color: K.blue }, rectRadius: 0.2 });
-    s.addText(f.num, { x: 0.55, y, w: 0.4, h: 0.4, fontSize: 12, bold: true, color: K.white, align: "center", valign: "middle", fontFace: "Consolas" });
-    s.addText(f.title, { x: 1.1, y: y - 0.02, w: 1.2, h: 0.4, fontSize: 12, bold: true, color: K.dark, valign: "middle" });
-    s.addText(f.desc, { x: 2.3, y: y - 0.02, w: 3.9, h: 0.4, fontSize: 12, color: K.body, valign: "middle" });
+    const y = 2.1 + i * 1.0;
+    s.addShape("rect", { x: 0.55, y, w: 0.45, h: 0.45, fill: { color: K.blue }, rectRadius: 0.22 });
+    s.addText(f.num, { x: 0.55, y, w: 0.45, h: 0.45, fontSize: 14, bold: true, color: K.white, align: "center", valign: "middle", fontFace: "Consolas" });
+    s.addText(f.title, { x: 1.15, y, w: 1.3, h: 0.45, fontSize: 14, bold: true, color: K.dark, valign: "middle" });
+    s.addText(f.desc, { x: 2.5, y, w: 3.7, h: 0.45, fontSize: 13, color: K.body, valign: "middle" });
   });
 
   // === RIGHT PANEL: 死锁修复 ===
