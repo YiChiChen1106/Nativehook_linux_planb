@@ -172,7 +172,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   const barData = [
     { name: "环形写入 + 内部锁", labels: ["1 线程"], values: [0.28] },
     { name: "eventfd 系统调用", labels: ["1 线程"], values: [0.54] },
-    { name: "消费者消费", labels: ["1 线程"], values: [0.03] },
+    { name: "consumer drain", labels: ["1 线程"], values: [0.03] },
   ];
   s.addChart(pptx.charts.BAR, barData, {
     x: 0.5, y: 1.4, w: 5.8, h: 2.6,
@@ -192,7 +192,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   s.addText("eventfd 系统调用 0.54s · 占总量 64%", { x: 6.7, y: 2.2, w: 5.9, h: 0.55, fontSize: 13, color: K.orange, valign: "middle" });
 
   s.addShape("rect", { x: 6.5, y: 2.9, w: 6.3, h: 0.55, fill: { color: K.greenBg }, rectRadius: 0.05 });
-  s.addText("消费者消费 0.03s · 基本免费", { x: 6.7, y: 2.9, w: 5.9, h: 0.55, fontSize: 13, color: K.green, valign: "middle" });
+  s.addText("consumer drain 0.03s · 基本免费", { x: 6.7, y: 2.9, w: 5.9, h: 0.55, fontSize: 13, color: K.green, valign: "middle" });
 
   // Bottom: thread scaling line chart
   const lineData = [
@@ -211,7 +211,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
     plotArea: { fill: { color: K.white } },
   });
 
-  calloutBox(s, "eventfd 系统调用是最大单一开销（65%）· 消费者消费几乎免费 · 子阶段 35/36 线程扩展平坦", 0.55, 7.05, 12.3, K.blue, K.blueBg);
+  calloutBox(s, "eventfd 系统调用是最大单一开销（65%）· consumer drain几乎免费 · 子阶段 35/36 线程扩展平坦", 0.55, 7.05, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 4: Negative Experiments ---
