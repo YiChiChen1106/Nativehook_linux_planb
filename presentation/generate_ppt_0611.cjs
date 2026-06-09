@@ -114,17 +114,53 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 2: Feedback + Deadlock ---
 {
   const s = pptx.addSlide();
-  header(s, 2, "上次反馈闭环 + 子阶段 36 死锁修复");
-  bullets(s, [
-    { text: "上次四个问题全部闭环", highlight: true },
-    "热点定位 → 批量发布解决；perf 分析 → 逐层拆解替代",
-    "Gitee fork 到公司 GitLab 并完成移植",
-    "eBPF 高线程数据补充：8T/16T 下 eBPF 反超 2.5~3x",
-    { text: "Sub-stage 36 死锁修复", highlight: true },
-    "根因：外层 Lock() + Write() 内部重复加锁同一非递归互斥锁 = 未定义行为",
-    "修复：删除外层 Lock/Unlock，commit e19571b",
-    "旧数据作废：double-lock UB 导致 31x 性能退化（8.60s → 0.28s）",
-  ], 1.4);
+  header(s, 2, "上次反馈闭环 + 死锁修复");
+
+  // === LEFT PANEL: 上次反馈 ===
+  s.addShape("rect", { x: 0.5, y: 1.35, w: 5.9, h: 0.45, fill: { color: K.blueBg }, rectRadius: 0.05 });
+  s.addText("上次组会四个问题全部闭环", { x: 0.7, y: 1.35, w: 5.5, h: 0.45, fontSize: 13, bold: true, color: K.blue, valign: "middle" });
+
+  const feedback = [
+    { num: "1", title: "热点定位", desc: "ring 共享状态竞争 → 批量发布解决" },
+    { num: "2", title: "perf 分析", desc: "用逐层拆解替代，粒度更细" },
+    { num: "3", title: "代码移植", desc: "Gitee fork 到公司 GitLab 并完成" },
+    { num: "4", title: "eBPF 数据", desc: "补 8T/16T，高线程反超 2.5~3x" },
+  ];
+  feedback.forEach((f, i) => {
+    const y = 1.95 + i * 0.65;
+    s.addShape("rect", { x: 0.55, y, w: 0.4, h: 0.4, fill: { color: K.blue }, rectRadius: 0.2 });
+    s.addText(f.num, { x: 0.55, y, w: 0.4, h: 0.4, fontSize: 12, bold: true, color: K.white, align: "center", valign: "middle", fontFace: "Consolas" });
+    s.addText(f.title, { x: 1.1, y: y - 0.02, w: 1.2, h: 0.4, fontSize: 12, bold: true, color: K.dark, valign: "middle" });
+    s.addText(f.desc, { x: 2.3, y: y - 0.02, w: 3.9, h: 0.4, fontSize: 12, color: K.body, valign: "middle" });
+  });
+
+  // === RIGHT PANEL: 死锁修复 ===
+  s.addShape("rect", { x: 6.8, y: 1.35, w: 6.0, h: 0.45, fill: { color: K.redBg }, rectRadius: 0.05 });
+  s.addText("子阶段 36 死锁修复", { x: 7.0, y: 1.35, w: 5.6, h: 0.45, fontSize: 13, bold: true, color: K.red, valign: "middle" });
+
+  // Before/after boxes
+  s.addShape("rect", { x: 6.8, y: 2.0, w: 2.7, h: 1.4, fill: { color: K.redBg }, rectRadius: 0.08 });
+  s.addText("修复前", { x: 6.9, y: 2.05, w: 2.5, h: 0.3, fontSize: 10, color: K.red, align: "center" });
+  s.addText("8.60s", { x: 6.9, y: 2.4, w: 2.5, h: 0.6, fontSize: 28, bold: true, color: K.red, align: "center", fontFace: "Consolas" });
+  s.addText("子阶段 34 · 1 线程", { x: 6.9, y: 2.95, w: 2.5, h: 0.3, fontSize: 9, color: K.muted, align: "center" });
+
+  s.addShape("rect", { x: 10.1, y: 2.0, w: 2.7, h: 1.4, fill: { color: K.greenBg }, rectRadius: 0.08 });
+  s.addText("修复后", { x: 10.2, y: 2.05, w: 2.5, h: 0.3, fontSize: 10, color: K.green, align: "center" });
+  s.addText("0.28s", { x: 10.2, y: 2.4, w: 2.5, h: 0.6, fontSize: 28, bold: true, color: K.green, align: "center", fontFace: "Consolas" });
+  s.addText("子阶段 34 · 1 线程", { x: 10.2, y: 2.95, w: 2.5, h: 0.3, fontSize: 9, color: K.muted, align: "center" });
+
+  // Arrow and improvement
+  s.addText("→", { x: 9.5, y: 2.3, w: 0.6, h: 0.8, fontSize: 24, color: K.muted, align: "center", valign: "middle" });
+
+  // Root cause box
+  s.addShape("rect", { x: 6.8, y: 3.65, w: 6.0, h: 1.4, fill: { color: K.white }, rectRadius: 0.08, shadow: { type: "outer", blur: 3, offset: 1, color: "000000", opacity: 0.04 } });
+  s.addText("根因", { x: 7.0, y: 3.7, w: 5.6, h: 0.3, fontSize: 11, bold: true, color: K.muted });
+  s.addText("外层 Lock() + Write() 内部重复加锁同一非递归互斥锁", { x: 7.0, y: 3.95, w: 5.6, h: 0.35, fontSize: 13, color: K.dark });
+  s.addText("→ POSIX 未定义行为 → 采集的数据无意义 → 全部作废重采", { x: 7.0, y: 4.3, w: 5.6, h: 0.35, fontSize: 12, color: K.red });
+  s.addText("commit e19571b：删除外层 Lock/Unlock，Write() 自行管理锁", { x: 7.0, y: 4.65, w: 5.6, h: 0.3, fontSize: 11, color: K.muted });
+
+  // Bottom callout
+  calloutBox(s, "修复后全部 ablation 数据在 pink 重新采集 · 旧数据不再使用", 0.55, 5.5, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 3: Ablation Data ---
