@@ -282,10 +282,9 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
     x: 0.5, y: 1.4, w: 8.0, h: 4.5,
     barDir: "col", barGrouping: "clustered",
     chartColors: [K.muted, K.green, K.red],
-    showValue: true, valueFontSize: 12, valueFontFace: "Consolas",
     catAxisLabelFontSize: 13, valAxisLabelFontSize: 10,
     valAxisTitle: "秒（越低越好）", valAxisTitleFontSize: 10,
-    valAxisMinVal: 0,
+    valAxisMinVal: 0, valAxisMaxVal: 1.2,
     plotArea: { fill: { color: K.white } },
     legendPos: "b", legendFontSize: 11,
   });
