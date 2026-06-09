@@ -166,7 +166,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 3: Ablation Data ---
 {
   const s = pptx.addSlide();
-  header(s, 3, "热路径三层拆解", "固定 100 万次迭代，逐条模式，修复后重新采集");
+  header(s, 3, "StackWriter 层三层拆解", "热路径最后一段：环形写入 → eventfd 通知 → consumer drain · 固定 100 万次迭代 · 修复后重采");
 
   // Left: stacked bar showing 1T decomposition
   const barData = [
