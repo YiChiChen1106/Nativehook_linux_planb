@@ -134,16 +134,16 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 
   // Left: stacked bar showing 1T decomposition
   const barData = [
-    { name: "环形写入 + 内部锁", labels: ["单线程耗时拆解"], values: [0.28] },
-    { name: "eventfd 系统调用", labels: ["单线程耗时拆解"], values: [0.54] },
-    { name: "消费者消费", labels: ["单线程耗时拆解"], values: [0.03] },
+    { name: "环形写入 + 内部锁", labels: ["1 线程"], values: [0.28] },
+    { name: "eventfd 系统调用", labels: ["1 线程"], values: [0.54] },
+    { name: "消费者消费", labels: ["1 线程"], values: [0.03] },
   ];
   s.addChart(pptx.charts.BAR, barData, {
-    x: 0.5, y: 1.4, w: 5.5, h: 3.2,
+    x: 0.5, y: 1.4, w: 5.8, h: 2.6,
     barDir: "bar", barGrouping: "stacked",
     chartColors: [K.blue, K.orange, K.green],
-    showValue: true, valueFontSize: 11, valueFontFace: "Consolas",
-    catAxisLabelFontSize: 0, valAxisLabelFontSize: 10,
+    showValue: true, valueFontSize: 12, valueFontFace: "Consolas",
+    catAxisLabelFontSize: 12, valAxisLabelFontSize: 10,
     valAxisTitle: "秒", valAxisTitleFontSize: 10,
     valAxisMaxVal: 1.0, valAxisMinVal: 0,
     plotArea: { fill: { color: K.white } },
@@ -161,9 +161,9 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 
   // Bottom: thread scaling line chart
   const lineData = [
-    { name: "子阶段 34（纯写入）", labels: ["1线", "4线", "8线", "16线"], values: [0.28, 0.35, 0.59, 0.73] },
-    { name: "子阶段 35（+eventfd）", labels: ["1线", "4线", "8线", "16线"], values: [0.82, 0.71, 0.76, 0.81] },
-    { name: "子阶段 36（全链路）", labels: ["1线", "4线", "8线", "16线"], values: [0.84, 0.79, 0.85, 0.88] },
+    { name: "子阶段 34（纯写入）", labels: ["1 线程", "4 线程", "8 线程", "16 线程"], values: [0.28, 0.35, 0.59, 0.73] },
+    { name: "子阶段 35（+eventfd）", labels: ["1 线程", "4 线程", "8 线程", "16 线程"], values: [0.82, 0.71, 0.76, 0.81] },
+    { name: "子阶段 36（全链路）", labels: ["1 线程", "4 线程", "8 线程", "16 线程"], values: [0.84, 0.79, 0.85, 0.88] },
   ];
   s.addChart(pptx.charts.LINE, lineData, {
     x: 0.5, y: 3.9, w: 12.3, h: 3.0,
