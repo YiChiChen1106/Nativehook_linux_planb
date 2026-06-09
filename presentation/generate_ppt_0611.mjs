@@ -247,7 +247,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 5: Consumer Profile + FT ---
 {
   const s = pptx.addSlide();
-  header(s, 5, "Consumer Profiling + Flush Threshold Sweep");
+  header(s, 5, "Consumer 耗时分析（排除法）");
   table(s, [
     ["阶段", "每次 wakeup 耗时", "占比"],
     ["eventfd read", "3961 ns", "66%"],
