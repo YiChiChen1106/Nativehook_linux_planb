@@ -130,32 +130,85 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 3: Ablation Data ---
 {
   const s = pptx.addSlide();
-  header(s, 3, "StackWriter 三层拆解", "固定 100 万次 mixed3 迭代，per-record 模式，修复后重采集");
-  let y = 1.4;
-  table(s, [
-    ["子阶段", "含义", "1 线程", "4 线程", "8 线程", "16 线程"],
-    ["34 纯写入", "环形写入 + 内部锁", "0.28s", "0.35s", "0.59s", "0.73s"],
-    ["35 加通知", "+ eventfd 系统调用", "0.82s", "0.71s", "0.76s", "0.81s"],
-    ["36 全链路", "+ 消费者消费", "0.84s", "0.79s", "0.85s", "0.88s"],
-  ], { y: 1.4 });
-  // Metric boxes
-  metricBox(s, "环形写入内锁", "0.28s", "子阶段 34 · 单线程", 0.55, 3.5, K.blue);
-  metricBox(s, "eventfd 系统调用", "0.54s", "子阶段 35-34 差值", 3.4, 3.5, K.orange);
-  metricBox(s, "消费者消费", "0.03s", "子阶段 36-35 差值", 6.25, 3.5, K.green);
-  metricBox(s, "16 线程竞争退化", "2.6×", "子阶段 34 · 16线/单线", 9.1, 3.5, K.purple);
+  header(s, 3, "热路径三层拆解", "固定 100 万次迭代，逐条模式，修复后重新采集");
+
+  // Left: stacked bar showing 1T decomposition
+  const barData = [
+    { name: "环形写入 + 内部锁", labels: ["单线程耗时拆解"], values: [0.28] },
+    { name: "eventfd 系统调用", labels: ["单线程耗时拆解"], values: [0.54] },
+    { name: "消费者消费", labels: ["单线程耗时拆解"], values: [0.03] },
+  ];
+  s.addChart(pptx.charts.BAR, barData, {
+    x: 0.5, y: 1.4, w: 5.5, h: 3.2,
+    barDir: "bar", barGrouping: "stacked",
+    chartColors: [K.blue, K.orange, K.green],
+    showValue: true, valueFontSize: 11, valueFontFace: "Consolas",
+    catAxisLabelFontSize: 0, valAxisLabelFontSize: 10,
+    valAxisTitle: "秒", valAxisTitleFontSize: 10,
+    valAxisMaxVal: 1.0, valAxisMinVal: 0,
+    plotArea: { fill: { color: K.white } },
+  });
+
+  // Right annotation: key numbers
+  s.addShape("rect", { x: 6.5, y: 1.5, w: 6.3, h: 0.55, fill: { color: K.blueBg }, rectRadius: 0.05 });
+  s.addText("环形写入仅 0.28s · 占总量 33%", { x: 6.7, y: 1.5, w: 5.9, h: 0.55, fontSize: 13, color: K.blue, valign: "middle" });
+
+  s.addShape("rect", { x: 6.5, y: 2.2, w: 6.3, h: 0.55, fill: { color: K.orangeBg }, rectRadius: 0.05 });
+  s.addText("eventfd 系统调用 0.54s · 占总量 64%", { x: 6.7, y: 2.2, w: 5.9, h: 0.55, fontSize: 13, color: K.orange, valign: "middle" });
+
+  s.addShape("rect", { x: 6.5, y: 2.9, w: 6.3, h: 0.55, fill: { color: K.greenBg }, rectRadius: 0.05 });
+  s.addText("消费者消费 0.03s · 基本免费", { x: 6.7, y: 2.9, w: 5.9, h: 0.55, fontSize: 13, color: K.green, valign: "middle" });
+
+  // Bottom: thread scaling line chart
+  const lineData = [
+    { name: "子阶段 34（纯写入）", labels: ["1线", "4线", "8线", "16线"], values: [0.28, 0.35, 0.59, 0.73] },
+    { name: "子阶段 35（+eventfd）", labels: ["1线", "4线", "8线", "16线"], values: [0.82, 0.71, 0.76, 0.81] },
+    { name: "子阶段 36（全链路）", labels: ["1线", "4线", "8线", "16线"], values: [0.84, 0.79, 0.85, 0.88] },
+  ];
+  s.addChart(pptx.charts.LINE, lineData, {
+    x: 0.5, y: 3.9, w: 12.3, h: 3.0,
+    chartColors: [K.blue, K.orange, K.green],
+    showMarker: true, markerSize: 6,
+    lineSize: 2.5,
+    catAxisLabelFontSize: 11, valAxisLabelFontSize: 10,
+    valAxisTitle: "秒", valAxisTitleFontSize: 10,
+    valAxisMinVal: 0,
+    plotArea: { fill: { color: K.white } },
+  });
+
+  calloutBox(s, "eventfd 系统调用是最大单一开销（65%）· 消费者消费几乎免费 · 子阶段 35/36 线程扩展平坦", 0.55, 7.05, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 4: Negative Experiments ---
 {
   const s = pptx.addSlide();
   header(s, 4, "三项否定实验", "均指向同一结论：共享状态是根因，换锁不够");
-  table(s, [
-    [  "实验", "方法", "结果", "根因"],
-    ["StackWriter\n批量发布", "线程本地缓冲\n批量写入 4~64", "全在噪声范围\n无效果", "内部锁临界区\n仅 ~25 纳秒"],
-    ["锁延迟模拟\nLNHV1_LOCK_DELAY_NS", "临界区注入\nbusy-wait 0→1000ns", "16T/1T 始终 ~3x\n无恶化", "锁持有时间\n不是瓶颈"],
-    ["CAS 锁替换\nLNHV1_LOCK_FREE_RING", "CAS 替代\npthread_mutex_t", "4T: +32%\n8T+: 无效果", "CAS retry 的 cache\nline bouncing = mutex"],
-  ], { y: 1.4, rowH: 0.85, headerRows: 1 });
-  calloutBox(s, "→ 需要消除共享状态，而不是换一种锁", 0.55, 5.5, 4.5, K.red, K.redBg);
+
+  const cards = [
+    { icon: "✗", title: "批量发布", sub: "buffer + batch write", result: "batch 4~64 全在噪声内", reason: "内部锁临界区仅 25ns，省无可省", color: K.red },
+    { icon: "✗", title: "锁延迟模拟", sub: "临界区注入忙等 0→1000ns", result: "16线/1线竞争比始终 ~3×", reason: "锁持有时间不是瓶颈", color: K.orange },
+    { icon: "△", title: "原子操作替代", sub: "CAS 替换互斥锁", result: "4线 +32%，8线以上无效", reason: "重试时的缓存行抖动 = 互斥锁", color: K.orange },
+  ];
+
+  cards.forEach((c, i) => {
+    const x = 0.55 + i * 4.15;
+    const y = 1.4;
+    // Card background
+    s.addShape("rect", { x, y, w: 3.9, h: 3.8, fill: { color: K.white }, rectRadius: 0.1, shadow: { type: "outer", blur: 6, offset: 2, color: "000000", opacity: 0.08 } });
+    // Icon
+    s.addText(c.icon, { x, y: y + 0.15, w: 3.9, h: 0.7, fontSize: 36, color: c.color, align: "center", fontFace: "Arial" });
+    // Title
+    s.addText(c.title, { x: x + 0.2, y: y + 0.85, w: 3.5, h: 0.45, fontSize: 18, bold: true, color: K.dark, align: "center" });
+    // Subtitle
+    s.addText(c.sub, { x: x + 0.2, y: y + 1.3, w: 3.5, h: 0.35, fontSize: 11, color: K.muted, align: "center" });
+    // Result
+    s.addShape("rect", { x: x + 0.3, y: y + 1.85, w: 3.3, h: 0.55, fill: { color: K.redBg }, rectRadius: 0.05 });
+    s.addText(c.result, { x: x + 0.4, y: y + 1.85, w: 3.1, h: 0.55, fontSize: 12, bold: true, color: K.red, align: "center", valign: "middle" });
+    // Reason
+    s.addText(c.reason, { x: x + 0.2, y: y + 2.6, w: 3.5, h: 0.6, fontSize: 11, color: K.muted, align: "center", valign: "top" });
+  });
+
+  calloutBox(s, "需要消除共享状态，而不是换一种锁", 0.55, 5.8, 5.5, K.red, K.redBg);
 }
 
 // --- Slide 5: Consumer Profile + FT ---
@@ -181,39 +234,78 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
 // --- Slide 6: eBPF Re-comparison ---
 {
   const s = pptx.addSlide();
-  header(s, 6, "eBPF vs LD_PRELOAD 重对比", "1M mixed3 iters, libbpf_ring_output mode");
-  table(s, [
-    ["", "T=1", "T=4", "T=8", "T=16"],
-    ["LD_PRELOAD (优化后)", "0.40s", "1.13s", "1.47s", "1.43s"],
-    ["eBPF libbpf_ring_output", "4.28s", "1.13s", "0.92s", "0.78s"],
-    ["胜者", "LD 10.8×", "平手", "eBPF 1.6×", "eBPF 1.8×"],
-  ], { y: 1.5 });
-  bullets(s, [
-    { text: "旧 8T: LD 3.12s vs eBPF 1.71s（1.8×）→ 新: 1.47s vs 0.92s（1.6×），差距缩小", highlight: false },
-    "低线程 LD_PRELOAD 碾压（1T: 10.8×）",
-    "高线程 eBPF per-CPU ringbuf 无锁优势仍在，但幅度减小",
-  ], 3.5);
+  header(s, 6, "eBPF vs LD_PRELOAD 重对比", "优化后 LD_PRELOAD 与 eBPF 环形输出模式，100 万次迭代");
+
+  // Grouped bar chart
+  const barData = [
+    { name: "LD_PRELOAD（优化后）", labels: ["1 线程", "4 线程", "8 线程", "16 线程"], values: [0.40, 1.13, 1.47, 1.43] },
+    { name: "eBPF 环形输出", labels: ["1 线程", "4 线程", "8 线程", "16 线程"], values: [4.28, 1.13, 0.92, 0.78] },
+  ];
+  s.addChart(pptx.charts.BAR, barData, {
+    x: 0.5, y: 1.4, w: 8.5, h: 4.2,
+    barDir: "col", barGrouping: "clustered",
+    chartColors: [K.blue, K.red],
+    showValue: true, valueFontSize: 10, valueFontFace: "Consolas",
+    catAxisLabelFontSize: 12, valAxisLabelFontSize: 10,
+    valAxisTitle: "秒（越低越好）", valAxisTitleFontSize: 10,
+    valAxisMinVal: 0,
+    plotArea: { fill: { color: K.white } },
+    legendPos: "b", legendFontSize: 11,
+  });
+
+  // Right annotations
+  s.addShape("rect", { x: 9.5, y: 1.6, w: 3.3, h: 0.55, fill: { color: K.blueBg }, rectRadius: 0.05 });
+  s.addText("1T: LD 碾压 10.8×", { x: 9.7, y: 1.6, w: 2.9, h: 0.55, fontSize: 13, color: K.blue, valign: "middle" });
+
+  s.addShape("rect", { x: 9.5, y: 2.4, w: 3.3, h: 0.55, fill: { color: K.white }, rectRadius: 0.05 });
+  s.addText("4T: 平手", { x: 9.7, y: 2.4, w: 2.9, h: 0.55, fontSize: 13, color: K.body, valign: "middle" });
+
+  s.addShape("rect", { x: 9.5, y: 3.2, w: 3.3, h: 0.55, fill: { color: K.redBg }, rectRadius: 0.05 });
+  s.addText("8T: eBPF 快 1.6×", { x: 9.7, y: 3.2, w: 2.9, h: 0.55, fontSize: 13, color: K.red, valign: "middle" });
+
+  s.addShape("rect", { x: 9.5, y: 4.0, w: 3.3, h: 0.55, fill: { color: K.redBg }, rectRadius: 0.05 });
+  s.addText("16T: eBPF 快 1.8×", { x: 9.7, y: 4.0, w: 2.9, h: 0.55, fontSize: 13, color: K.red, valign: "middle" });
+
+  calloutBox(s, "旧 8T: LD 3.12s vs eBPF 1.71s（1.8×）→ 新: 1.47s vs 0.92s（1.6×）  差距缩小但趋势不变", 0.55, 6.0, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 7: Sharded Ring ---
 {
   const s = pptx.addSlide();
-  header(s, 7, "Sharded Ring — 突破性发现", "TID-based per-CPU 分片，完全无锁写入");
+  header(s, 7, "分片环形区 — 突破性发现", "基于线程 ID 的每核分片，完全无锁写入 · 子阶段 36 全链路");
 
-  // Key metric
-  metricBox(s, "Sharded 16T", "0.727s", "sub=36 · vs mutex -30%", 0.55, 1.45, K.green);
-  metricBox(s, "Sharded 4T", "0.319s", "sub=36 · vs mutex -39%", 3.4, 1.45, K.green);
-  metricBox(s, "vs eBPF 16T", "反超", "0.727s < 0.779s", 6.25, 1.45, K.blue);
-  metricBox(s, "vs batch64 16T", "0.587s", "batch64 仍最优", 9.1, 1.45, K.purple);
+  // Grouped bar: 4T and 16T, mutex vs sharded vs eBPF
+  const barData = [
+    { name: "互斥锁（当前）", labels: ["4 线程", "16 线程"], values: [0.555, 1.038] },
+    { name: "分片环形区（新方案）", labels: ["4 线程", "16 线程"], values: [0.345, 0.727] },
+    { name: "eBPF 环形输出", labels: ["4 线程", "16 线程"], values: [1.13, 0.779] },
+  ];
+  s.addChart(pptx.charts.BAR, barData, {
+    x: 0.5, y: 1.4, w: 8.0, h: 4.5,
+    barDir: "col", barGrouping: "clustered",
+    chartColors: [K.muted, K.green, K.red],
+    showValue: true, valueFontSize: 12, valueFontFace: "Consolas",
+    catAxisLabelFontSize: 13, valAxisLabelFontSize: 10,
+    valAxisTitle: "秒（越低越好）", valAxisTitleFontSize: 10,
+    valAxisMinVal: 0,
+    plotArea: { fill: { color: K.white } },
+    legendPos: "b", legendFontSize: 11,
+  });
 
-  table(s, [
-    ["sub=36 对比", "mutex", "CAS", "Sharded (16片)", "eBPF"],
-    ["16T 耗时", "1.038s", "1.014s", "0.727s", "0.779s"],
-    ["vs mutex", "—", "—", "↓ 30%", "↓ 25%"],
-    ["4T 耗时", "0.555s", "—", "0.345s", "—"],
-    ["vs mutex", "—", "—", "↓ 39%", "—"],
-  ], { y: 3.2 });
-  calloutBox(s, "LD_PRELOAD 也能做到 per-CPU 无锁 —— 不需要引入 eBPF", 0.55, 6.0, 8, K.green, K.greenBg);
+  // Right: key takeaways
+  const items = [
+    { label: "4 线程改善", value: "↓ 39%", color: K.green },
+    { label: "16 线程改善", value: "↓ 30%", color: K.green },
+    { label: "反超 eBPF", value: "0.727 < 0.779", color: K.blue },
+  ];
+  items.forEach((it, i) => {
+    const y = 1.6 + i * 1.2;
+    s.addShape("rect", { x: 9.0, y, w: 3.8, h: 0.9, fill: { color: K.white }, rectRadius: 0.08, shadow: { type: "outer", blur: 4, offset: 1, color: "000000", opacity: 0.05 } });
+    s.addText(it.value, { x: 9.2, y: y + 0.05, w: 3.4, h: 0.5, fontSize: 24, bold: true, color: it.color, fontFace: "Consolas" });
+    s.addText(it.label, { x: 9.2, y: y + 0.55, w: 3.4, h: 0.3, fontSize: 11, color: K.muted });
+  });
+
+  calloutBox(s, "LD_PRELOAD 也能做到每核无锁写入 — 不需要引入 eBPF", 0.55, 6.4, 7.0, K.green, K.greenBg);
 }
 
 // --- Slide 8: Architecture Comparison ---
