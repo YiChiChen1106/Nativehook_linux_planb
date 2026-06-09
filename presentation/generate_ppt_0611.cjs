@@ -476,9 +476,9 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   header(s, 12, "后续计划");
 
   const steps = [
-    { num: "01", title: "真实代码编译验证", desc: "OH SDK 环境到位后\n编译验证分片方案" },
-    { num: "02", title: "团队评审", desc: "基于 SHARDED_RING: 标注\n在团队仓库提交合并请求" },
-    { num: "03", title: "性能验证", desc: "编译通过后在真实设备\n跑 benchmark 对比原型数据" },
+    { num: "01", title: "Shard + Batch 组合优化", desc: "回归显示 batch64 16T=0.587s 仍优于 sharded 0.727s\n两者组合（batch 减开销 + shard 消锁）可能进一步突破" },
+    { num: "02", title: "Shard 数量 Sweep", desc: "当前固定 16 片，sweep 4/8/16/32/64\n找到不同线程数下的最佳分片数" },
+    { num: "03", title: "代码合入 + 文档整理", desc: "实验代码已验证，合入 main 分支\n清理实验分支，更新工作记录" },
   ];
 
   steps.forEach((st, i) => {
