@@ -301,48 +301,10 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   calloutBox(s, "旧 8T: LD 3.12s vs eBPF 1.71s（1.8×）→ 新: 1.47s vs 0.92s（1.6×）  差距缩小但趋势不变", 0.55, 6.0, 12.3, K.blue, K.blueBg);
 }
 
-// --- Slide 7: Sharded Ring ---
+// --- Slide 7: 架构对比：LD_PRELOAD + Sharded Ring vs eBPF ---
 {
   const s = pptx.addSlide();
-  header(s, 7, "分片环形区 — 突破性发现", "基于线程 ID 的每核分片，完全无锁写入 · 子阶段 36 全链路");
-
-  // Grouped bar: 4T and 16T, mutex vs sharded vs eBPF
-  const barData = [
-    { name: "互斥锁（当前）", labels: ["4 线程", "16 线程"], values: [0.555, 1.038] },
-    { name: "分片环形区（新方案）", labels: ["4 线程", "16 线程"], values: [0.345, 0.727] },
-    { name: "eBPF 环形输出", labels: ["4 线程", "16 线程"], values: [1.13, 0.779] },
-  ];
-  s.addChart(pptx.charts.BAR, barData, {
-    x: 0.5, y: 1.4, w: 8.0, h: 4.5,
-    barDir: "col", barGrouping: "clustered",
-    chartColors: [K.muted, K.green, K.red],
-    catAxisLabelFontSize: 13, valAxisLabelFontSize: 10,
-    valAxisTitle: "秒（越低越好）", valAxisTitleFontSize: 10,
-    valAxisMinVal: 0, valAxisMaxVal: 1.2,
-    plotArea: { fill: { color: K.white } },
-    legendPos: "b", legendFontSize: 11,
-  });
-
-  // Right: key takeaways
-  const items = [
-    { label: "4 线程改善", value: "↓ 39%", color: K.green },
-    { label: "16 线程改善", value: "↓ 30%", color: K.green },
-    { label: "反超 eBPF", value: "0.727 < 0.779", color: K.blue },
-  ];
-  items.forEach((it, i) => {
-    const y = 1.6 + i * 1.2;
-    s.addShape("rect", { x: 9.0, y, w: 3.8, h: 0.9, fill: { color: K.white }, rectRadius: 0.08, shadow: { type: "outer", blur: 4, offset: 1, color: "000000", opacity: 0.05 } });
-    s.addText(it.value, { x: 9.2, y: y + 0.05, w: 3.4, h: 0.5, fontSize: 24, bold: true, color: it.color, fontFace: "Consolas" });
-    s.addText(it.label, { x: 9.2, y: y + 0.55, w: 3.4, h: 0.3, fontSize: 11, color: K.muted });
-  });
-
-  calloutBox(s, "LD_PRELOAD 也能做到每核无锁写入 — 不需要引入 eBPF", 0.55, 6.4, 7.0, K.green, K.greenBg);
-}
-
-// --- Slide 8: Architecture Comparison ---
-{
-  const s = pptx.addSlide();
-  header(s, 8, "架构对比：LD_PRELOAD + Sharded Ring vs eBPF");
+  header(s, 7, "架构对比：LD_PRELOAD + Sharded Ring vs eBPF");
 
   table(s, [
     ["对比维度", "LD_PRELOAD + Sharded Ring", "eBPF"],
@@ -361,10 +323,10 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   ], 5.2);
 }
 
-// --- Slide 9: OH Code Change ---
+// --- Slide 8: OH 代码改动提案 ---
 {
   const s = pptx.addSlide();
-  header(s, 9, "OH 代码改动提案", "三个改动点 · 集中在 StackWriter 层 · 不影响上层 hook 函数");
+  header(s, 8, "OH 代码改动提案", "三个改动点 · 集中在 StackWriter 层 · 不影响上层 hook 函数");
 
   function box(x, y, w, h, text, bg, tc = K.dark, fs = 10) {
     s.addShape("rect", { x, y, w, h, fill: { color: bg }, rectRadius: 0.05, line: { color: K.border, pt: 0.5 } });
@@ -419,6 +381,44 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   });
 
   calloutBox(s, "改动集中在 StackWriter 层 · 不影响 hook_malloc/hook_free · num_shards=0 时向后兼容", 0.55, 5.9, 12.3, K.blue, K.blueBg);
+}
+
+// --- Slide 9: 分片环形区 — 突破性发现 ---
+{
+  const s = pptx.addSlide();
+  header(s, 9, "分片环形区 — 突破性发现", "基于线程 ID 的每核分片，完全无锁写入 · 子阶段 36 全链路");
+
+  // Grouped bar: 4T and 16T, mutex vs sharded vs eBPF
+  const barData = [
+    { name: "互斥锁（当前）", labels: ["4 线程", "16 线程"], values: [0.555, 1.038] },
+    { name: "分片环形区（新方案）", labels: ["4 线程", "16 线程"], values: [0.345, 0.727] },
+    { name: "eBPF 环形输出", labels: ["4 线程", "16 线程"], values: [1.13, 0.779] },
+  ];
+  s.addChart(pptx.charts.BAR, barData, {
+    x: 0.5, y: 1.4, w: 8.0, h: 4.5,
+    barDir: "col", barGrouping: "clustered",
+    chartColors: [K.muted, K.green, K.red],
+    catAxisLabelFontSize: 13, valAxisLabelFontSize: 10,
+    valAxisTitle: "秒（越低越好）", valAxisTitleFontSize: 10,
+    valAxisMinVal: 0, valAxisMaxVal: 1.2,
+    plotArea: { fill: { color: K.white } },
+    legendPos: "b", legendFontSize: 11,
+  });
+
+  // Right: key takeaways
+  const items = [
+    { label: "4 线程改善", value: "↓ 39%", color: K.green },
+    { label: "16 线程改善", value: "↓ 30%", color: K.green },
+    { label: "反超 eBPF", value: "0.727 < 0.779", color: K.blue },
+  ];
+  items.forEach((it, i) => {
+    const y = 1.6 + i * 1.2;
+    s.addShape("rect", { x: 9.0, y, w: 3.8, h: 0.9, fill: { color: K.white }, rectRadius: 0.08, shadow: { type: "outer", blur: 4, offset: 1, color: "000000", opacity: 0.05 } });
+    s.addText(it.value, { x: 9.2, y: y + 0.05, w: 3.4, h: 0.5, fontSize: 24, bold: true, color: it.color, fontFace: "Consolas" });
+    s.addText(it.label, { x: 9.2, y: y + 0.55, w: 3.4, h: 0.3, fontSize: 11, color: K.muted });
+  });
+
+  calloutBox(s, "LD_PRELOAD 也能做到每核无锁写入 — 不需要引入 eBPF", 0.55, 6.4, 7.0, K.green, K.greenBg);
 }
 
 // --- Slide 10: Summary Table ---
