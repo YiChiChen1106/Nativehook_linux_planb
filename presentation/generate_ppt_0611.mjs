@@ -309,7 +309,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   table(s, [
     ["对比维度", "LD_PRELOAD + Sharded Ring", "eBPF"],
     ["无锁 ring write", "TID-based per-CPU shard", "per-CPU ringbuf"],
-    ["FpUnwind 栈回溯 (aarch64)", "✓ 完整支持", "✗ 不能做"],
+    ["栈回溯定位泄漏源", "✓ 完整支持 FpUnwind", "✗ 能检测泄漏，不能定位调用栈"],
     ["AddressHandler 追踪", "✓ 完整", "⚠ BPF map 受限"],
     ["部署方式", "LD_PRELOAD (已有)", "需 root + BPF 权限"],
     ["原型 16T sub=36", "0.727s", "0.779s"],
