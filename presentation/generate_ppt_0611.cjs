@@ -343,11 +343,11 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   let x = 0.4;
   box(x, flowY, 1.8, flowH, "hook_malloc\nFpUnwind + fill", K.blueBg); x += 1.8 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY, 2.0, flowH, "SendStackWithPayload\naddr % N → Block", K.white); marker(1, x + 0.1, flowY - 0.14, K.red); x += 2.0 + gap;
+  box(x, flowY, 2.0, flowH, "SendStackWithPayload\naddr % N → Block", K.white); marker(1, x + 0.85, flowY - 0.22, K.red); x += 2.0 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY, 1.8, flowH, "ShareMemoryBlock\n内部全局锁", K.orangeBg, K.orange); marker(2, x + 0.1, flowY - 0.14, K.red); x += 1.8 + gap;
+  box(x, flowY, 1.8, flowH, "ShareMemoryBlock\n内部全局锁", K.orangeBg, K.orange); marker(2, x + 0.75, flowY - 0.22, K.red); x += 1.8 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY, 2.0, flowH, "PrepareFlush / Flush\nglobal counter → Post", K.white); marker(3, x + 0.1, flowY - 0.14, K.red); x += 2.0 + gap;
+  box(x, flowY, 2.0, flowH, "PrepareFlush / Flush\nglobal counter → Post", K.white); marker(3, x + 0.85, flowY - 0.22, K.red); x += 2.0 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
   box(x, flowY, 2.2, flowH, "Consumer\n单个环形区遍历", K.greenBg);
 
@@ -359,11 +359,11 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   x = 0.4; const flowY2 = 3.15;
   box(x, flowY2, 1.8, flowH, "hook_malloc\nFpUnwind + fill", K.blueBg); x += 1.8 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY2, 2.0, flowH, "SendStackWithPayload\ntid % N → Block[shard]", K.greenBg, K.green); marker(1, x + 0.1, flowY2 - 0.14, K.green); x += 2.0 + gap;
+  box(x, flowY2, 2.0, flowH, "SendStackWithPayload\ntid % N → Block[shard]", K.greenBg, K.green); marker(1, x + 0.85, flowY2 - 0.22, K.green); x += 2.0 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY2, 1.8, flowH, "ShareMemoryBlock\nshard 内无锁写入", K.greenBg, K.green); marker(2, x + 0.1, flowY2 - 0.14, K.green); x += 1.8 + gap;
+  box(x, flowY2, 1.8, flowH, "ShareMemoryBlock\nshard 内无锁写入", K.greenBg, K.green); marker(2, x + 0.75, flowY2 - 0.22, K.green); x += 1.8 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY2, 2.0, flowH, "PrepareFlush / Flush\nper-shard counter → Post", K.greenBg, K.green); marker(3, x + 0.1, flowY2 - 0.14, K.green); x += 2.0 + gap;
+  box(x, flowY2, 2.0, flowH, "PrepareFlush / Flush\nper-shard counter → Post", K.greenBg, K.green); marker(3, x + 0.85, flowY2 - 0.22, K.green); x += 2.0 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
   box(x, flowY2, 2.2, flowH, "Consumer\n轮询所有分片", K.greenBg);
 
