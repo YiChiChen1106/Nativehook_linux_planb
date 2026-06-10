@@ -419,6 +419,10 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   });
 
   calloutBox(s, "LD_PRELOAD 也能做到每核无锁写入 — 不需要引入 eBPF", 0.55, 6.4, 7.0, K.green, K.greenBg);
+
+  // Limitations note
+  s.addText("注意事项：环形区分片后空间利用率降低（单分片写满即丢）· 线程数需匹配分片数 · consumer 多扫 N-1 个空分片（实测 423ns，可忽略）",
+    { x: 0.5, y: 7.0, w: 12.3, h: 0.35, fontSize: 9, color: K.muted, align: "center" });
 }
 
 // --- Slide 10: Summary Table ---
