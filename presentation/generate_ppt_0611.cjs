@@ -311,13 +311,12 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
     ["无锁 ring write", "TID-based per-CPU shard", "per-CPU ringbuf"],
     ["栈回溯定位泄漏源", "✓ 完整支持 FpUnwind", "✗ 能检测泄漏，不能定位调用栈"],
     ["AddressHandler 追踪", "✓ 完整", "⚠ BPF map 受限"],
-    ["部署方式", "LD_PRELOAD (已有)", "需 root + BPF 权限"],
     ["原型 16T sub=36", "0.727s", "0.779s"],
     ["功能完整度", "无损失", "损失 FpUnwind"],
   ], { y: 1.5 });
 
   bullets(s, [
-    { text: "结论：不需要引入 eBPF。Sharded ring 在保留全部功能的前提下，性能和部署都优于 eBPF。", highlight: true },
+    { text: "结论：不需要引入 eBPF。Sharded ring 在保留全部功能的前提下，性能优于 eBPF。", highlight: true },
     "eBPF 的沙箱限制（不能调用户态函数、不能做栈回溯）让它无法完整替代 hook 热路径",
     "而 sharded ring 直接在现有 LD_PRELOAD 架构上消除了共享锁竞争",
   ], 5.2);
@@ -462,8 +461,8 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   // Three pillars
   const pillars = [
     { label: "数据", value: "16T: -30%", sub: "反超 eBPF" },
-    { label: "功能", value: "完整", sub: "保留 FpUnwind" },
-    { label: "部署", value: "零依赖", sub: "无需 root/BPF" },
+    { label: "功能", value: "完整", sub: "保留栈回溯" },
+    { label: "实现", value: "轻量", sub: "仅改 StackWriter 层" },
   ];
   pillars.forEach((p, i) => {
     const x = 2.0 + i * 3.5;
