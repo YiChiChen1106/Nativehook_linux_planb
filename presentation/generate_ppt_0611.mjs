@@ -342,7 +342,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   let x = 0.4;
   box(x, flowY, 1.8, flowH, "hook_malloc\nFpUnwind + fill", K.blueBg); x += 1.8 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY, 2.0, flowH, "SendStackWithPayload\naddr % N → Block", K.white); marker(1, x + 0.85, flowY - 0.22, K.red); x += 2.0 + gap;
+  box(x, flowY, 2.0, flowH, "SendStackWithPayload\n地址取余选块", K.white); marker(1, x + 0.85, flowY - 0.22, K.red); x += 2.0 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
   box(x, flowY, 1.8, flowH, "ShareMemoryBlock\n内部全局锁", K.orangeBg, K.orange); marker(2, x + 0.75, flowY - 0.22, K.red); x += 1.8 + gap;
   s.addText("→", { x, y: flowY, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
@@ -358,7 +358,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   x = 0.4; const flowY2 = 3.15;
   box(x, flowY2, 1.8, flowH, "hook_malloc\nFpUnwind + fill", K.blueBg); x += 1.8 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
-  box(x, flowY2, 2.0, flowH, "SendStackWithPayload\ntid % N → Block[shard]", K.greenBg, K.green); marker(1, x + 0.85, flowY2 - 0.22, K.green); x += 2.0 + gap;
+  box(x, flowY2, 2.0, flowH, "SendStackWithPayload\n线程取余选块", K.greenBg, K.green); marker(1, x + 0.85, flowY2 - 0.22, K.green); x += 2.0 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
   box(x, flowY2, 1.8, flowH, "ShareMemoryBlock\nshard 内无锁写入", K.greenBg, K.green); marker(2, x + 0.75, flowY2 - 0.22, K.green); x += 1.8 + gap;
   s.addText("→", { x, y: flowY2, w: gap, h: flowH, fontSize: 14, color: K.muted, align: "center", valign: "middle" }); x += gap;
@@ -369,7 +369,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   // === Legend ===
   const LY = 4.1;
   const legend = [
-    { n: 1, t: "hook_client.cpp:628 — addr % N → tid % N + thread_local 缓存 TID", c: K.green },
+    { n: 1, t: "hook_client.cpp:628 — 地址取余 → 线程取余 + 线程本地缓存", c: K.green },
     { n: 2, t: "stack_writer.cpp:89 — PutWithPayloadTimeout 新增 shard_idx 参数，内部无锁", c: K.green },
     { n: 3, t: "stack_writer.cpp:94 — PrepareFlush/Flush 每 shard 独立计数，汇总 Post", c: K.green },
   ];
