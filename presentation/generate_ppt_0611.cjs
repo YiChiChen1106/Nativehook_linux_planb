@@ -379,7 +379,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
     s.addText(l.t, { x: 1.15, y: ly, w: 11, h: 0.4, fontSize: 11, color: K.body, valign: "middle" });
   });
 
-  calloutBox(s, "改动集中在 StackWriter 层 · 不影响 hook_malloc/hook_free · num_shards=0 时向后兼容", 0.55, 5.9, 12.3, K.blue, K.blueBg);
+  calloutBox(s, "改动集中在 StackWriter 层 · 不影响 hook_malloc/hook_free · 已标注 push 至 yt_nativehook", 0.55, 5.9, 12.3, K.blue, K.blueBg);
 }
 
 // --- Slide 9: 分片环形区 — 突破性发现 ---
