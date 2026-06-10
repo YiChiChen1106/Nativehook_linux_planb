@@ -316,7 +316,7 @@ function calloutBox(s, text, x, y, w, color, bgColor) {
   ], { y: 1.5 });
 
   bullets(s, [
-    { text: "结论：不需要引入 eBPF。Sharded ring 在保留全部功能的前提下，性能优于 eBPF。", highlight: true },
+    { text: "结论：eBPF 无法完整替代 producer 端（无栈回溯）", highlight: true },
     "eBPF 的沙箱限制（不能调用户态函数、不能做栈回溯）让它无法完整替代 hook 热路径",
     "而 sharded ring 直接在现有 LD_PRELOAD 架构上消除了共享锁竞争",
   ], 5.2);
