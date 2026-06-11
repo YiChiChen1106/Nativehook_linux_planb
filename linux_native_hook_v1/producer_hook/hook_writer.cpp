@@ -1405,6 +1405,17 @@ bool HookWriter::FlushStage6Batch(bool allow_notify)
         return true;
     }
 
+    // Sharded ring path: bypass HookWriter mutex, write directly through StackWriter.
+    const uint32_t num_shards = GetShardedRingShards();
+    if (num_shards > 0) {
+        stack_writer_.Write(g_stage6_batch.records.data(), g_stage6_batch.count, false);
+        g_stage6_batch.count = 0;
+        if (allow_notify) {
+            stack_writer_.Flush();
+        }
+        return true;
+    }
+
     bool notify_after_unlock = false;
     bool ret = false;
     {
