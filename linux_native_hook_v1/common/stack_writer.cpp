@@ -71,8 +71,9 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
         const uint32_t next_write = (shard_write + writable) % shard_cap;
         AtomicStoreU32(&shard.write_index, next_write);
 
+        pending_count_ += writable;
+
         // In sharded mode, consumer drains all shards; we don't update read_index.
-        // pending_count_ is not meaningful in sharded mode.
         return writable == record_count;
     }
 

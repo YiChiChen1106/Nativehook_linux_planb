@@ -120,7 +120,19 @@ int main(int argc, char* argv[])
         } else if (arg == "--profile") {
             profile = true;
         } else if (arg == "--shards" && i + 1 < argc) {
-            if (!ParsePositiveU32(argv[++i], &num_shards) || num_shards > kShmMaxShards) {
+            const char* val = argv[++i];
+            if (std::strcmp(val, "auto") == 0) {
+                unsigned int cpuCount = 4;
+                const char* cpuEnv = std::getenv("LNHV1_CPU_COUNT");
+                if (cpuEnv != nullptr && cpuEnv[0] != '\0') {
+                    char* end = nullptr;
+                    unsigned long v = std::strtoul(cpuEnv, &end, 10);
+                    if (end != nullptr && *end == '\0' && v >= 1) cpuCount = static_cast<unsigned int>(v);
+                }
+                if (cpuCount < 2) cpuCount = 2;
+                if (cpuCount > kShmMaxShards) cpuCount = kShmMaxShards;
+                num_shards = cpuCount;
+            } else if (!ParsePositiveU32(val, &num_shards) || num_shards > kShmMaxShards) {
                 PrintUsage();
                 return 1;
             }
