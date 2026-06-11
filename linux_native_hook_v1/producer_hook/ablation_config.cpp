@@ -353,6 +353,11 @@ uint32_t ParseShardedRingShardsFromEnv()
         return 0;
     }
 
+    // "auto" mode: use CPU core count
+    if (text[0] == 'a' && std::strcmp(text, "auto") == 0) {
+        return UINT32_MAX;
+    }
+
     char* end_ptr = nullptr;
     const unsigned long value = std::strtoul(text, &end_ptr, 10);
     if (*text == '\0' || end_ptr == nullptr || *end_ptr != '\0' || value > kShmMaxShards) {
@@ -369,10 +374,28 @@ uint32_t GetShardedRingShards()
         return static_cast<uint32_t>(shards);
     }
 
-    const int parsed_shards = static_cast<int>(ParseShardedRingShardsFromEnv());
+    uint32_t parsed_shards = ParseShardedRingShardsFromEnv();
+
+    // "auto" mode: match shard count to CPU core count (clamped 2..16)
+    if (parsed_shards == UINT32_MAX) {
+        unsigned int cpuCount = 4;  // sensible default
+        const char* cpuEnv = std::getenv("LNHV1_CPU_COUNT");
+        if (cpuEnv != nullptr && cpuEnv[0] != '\0') {
+            char* end = nullptr;
+            unsigned long val = std::strtoul(cpuEnv, &end, 10);
+            if (end != nullptr && *end == '\0' && val >= 1) {
+                cpuCount = static_cast<unsigned int>(val);
+            }
+        }
+        if (cpuCount < 2) cpuCount = 2;
+        if (cpuCount > kShmMaxShards) cpuCount = kShmMaxShards;
+        parsed_shards = cpuCount;
+    }
+
     int expected = kUnsetShardedRingShards;
+    int asInt = static_cast<int>(parsed_shards);
     g_cached_sharded_ring_shards.compare_exchange_strong(
-        expected, parsed_shards, std::memory_order_release, std::memory_order_relaxed);
+        expected, asInt, std::memory_order_release, std::memory_order_relaxed);
     return static_cast<uint32_t>(g_cached_sharded_ring_shards.load(std::memory_order_acquire));
 }
 
