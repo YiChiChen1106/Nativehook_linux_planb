@@ -58,23 +58,45 @@ bool StackWriter::WriteLocked(const HookRecord* records, uint32_t record_count, 
             : (shard_cap - shard_read + shard_write);
         const uint32_t shard_avail = (shard_cap > shard_used) ? (shard_cap - shard_used - 1) : 0;
         const uint32_t writable = (record_count <= shard_avail) ? record_count : shard_avail;
-        if (writable == 0) {
-            AtomicFetchAddU32(&shard.dropped, record_count);
-            return false;
+        uint32_t written = writable;
+        if (written > 0) {
+            const uint32_t offset = ShardRecordOffset(shard_idx, shard_cap);
+            for (uint32_t i = 0; i < writable; ++i) {
+                records_[offset + ((shard_write + i) % shard_cap)] = records[i];
+            }
+            const uint32_t next_write = (shard_write + writable) % shard_cap;
+            AtomicStoreU32(&shard.write_index, next_write);
+            pending_count_ += writable;
         }
 
-        const uint32_t offset = ShardRecordOffset(shard_idx, shard_cap);
-        for (uint32_t i = 0; i < writable; ++i) {
-            records_[offset + ((shard_write + i) % shard_cap)] = records[i];
+        // Overflow: if shard is full, fall back to the non-sharded path
+        // (uses inner_mutex_, writes to global ring area).
+        const uint32_t remaining = record_count - written;
+        if (remaining > 0) {
+            pthread_mutex_lock(&inner_mutex_);
+            // Use the non-sharded write logic for overflow records
+            const uint32_t glob_write = AtomicLoadU32(&header_->write_index);
+            const uint32_t glob_read = AtomicLoadU32(&header_->read_index);
+            const uint32_t glob_used = (glob_write >= glob_read)
+                ? (glob_write - glob_read)
+                : (capacity - glob_read + glob_write);
+            const uint32_t glob_avail = (capacity > glob_used) ? (capacity - glob_used - 1) : 0;
+            const uint32_t ov_writable = (remaining <= glob_avail) ? remaining : glob_avail;
+            const uint32_t base = glob_write;
+            for (uint32_t i = 0; i < ov_writable; ++i) {
+                records_[(base + i) % capacity] = records[written + i];
+            }
+            const uint32_t ov_next = (base + ov_writable) % capacity;
+            AtomicStoreU32(&header_->write_index, ov_next);
+            pending_count_ += ov_writable;
+            if (ov_writable < remaining) {
+                AtomicFetchAddU32(&header_->dropped, remaining - ov_writable);
+            }
+            pthread_mutex_unlock(&inner_mutex_);
+            written += ov_writable;
         }
 
-        const uint32_t next_write = (shard_write + writable) % shard_cap;
-        AtomicStoreU32(&shard.write_index, next_write);
-
-        pending_count_ += writable;
-
-        // In sharded mode, consumer drains all shards; we don't update read_index.
-        return writable == record_count;
+        return written == record_count;
     }
 
     // Non-sharded path (original logic).
