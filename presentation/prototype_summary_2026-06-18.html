@@ -159,6 +159,27 @@ nav a:hover { background: #1e40af; color: white; }
   <p class="subtitle" style="margin-top:16px;">已 push 至 yt_nativehook master</p>
 </section>
 
+<section class="slide">
+  <h3>7. 剩余瓶颈 & 后续方向</h3>
+
+  <div class="callout" style="margin-bottom: 16px;">
+    <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 不是锁竞争（sharded 已消除），
+    而是 CPU 调度竞争——17 个线程（16 producer + 1 consumer）抢 4 个核。
+  </div>
+
+  <table>
+    <tr><th>方向</th><th>说明</th></tr>
+    <tr><td><b>多核扩展测试</b></td><td rowspan="1">在 8/16/32 核机器上跑 1T→16T 对比，验证 CPU 竞争假说。<br>理想情况：N 核跑 N 线程时，每线程耗时 ≈ 1T 耗时。</td></tr>
+    <tr><td><b>OH 真机验证</b></td><td>等待 OH SDK，在真实设备（8+ 核）上编译运行，<br>验证 batch64 + TID 分片 + auto 在真机上的收益。</td></tr>
+    <tr><td><b>Consumer 内核旁路</b></td><td>eventfd 占 consumer 唤醒 66%。用 shared-memory flag polling<br>替代 eventfd，省掉系统调用开销。</td></tr>
+  </table>
+
+  <div class="callout" style="background:#fffbeb;font-size:0.85em;">
+    <b>参考：当前旗舰手机普遍 8 核（1+3+4 big.LITTLE）或 12 核。</b><br>
+    OH 设备至少有 8 核，sharded ring 的 per-CPU 无锁优势在真实硬件上会比 pink 更显著。
+  </div>
+</section>
+
 <footer class="slide">
   <h2 style="font-size:3em;">谢谢</h2>
   <p class="subtitle" style="color:#94a3b8;">所有数据 pink 采集 · 5 次重复 · 100万 mixed3 迭代</p>
