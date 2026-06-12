@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>native_hook Producer 端优化 — 原型实验总结</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.0.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.0.0/dist/theme/white.css">
+<style>
+:root {
+  --r-heading-color: #1a1a2e;
+  --r-main-color: #334155;
+}
+.reveal { font-size: 28px; }
+.reveal h2 { font-size: 1.4em; color: #1a1a2e; margin-bottom: 0.3em; }
+.reveal h3 { font-size: 1.1em; color: #1e40af; margin-bottom: 0.2em; }
+.reveal table { font-size: 0.55em; margin: 0.3em auto; border-collapse: collapse; width: 90%; }
+.reveal th { background: #2563eb; color: white; padding: 8px 10px; font-weight: 600; }
+.reveal td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; }
+.reveal td:first-child { text-align: left; font-weight: 500; }
+.reveal tr:nth-child(even) td { background: #f8fafc; }
+.green { color: #059669; font-weight: 700; }
+.red { color: #dc2626; }
+.blue { color: #2563eb; font-weight: 700; }
+.gray { color: #94a3b8; font-size: 0.7em; }
+.tag { display: inline-block; background: #ecfdf5; color: #059669; padding: 2px 8px; border-radius: 4px; font-size: 0.55em; margin-left: 8px; }
+.small { font-size: 0.7em; color: #64748b; }
+.callout { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 20px; margin: 16px 0; text-align: left; font-size: 0.8em; border-radius: 0 8px 8px 0; }
+.conclusion { background: #ecfdf5; border-left: 4px solid #059669; padding: 16px 24px; margin: 20px 0; text-align: center; font-size: 1.1em; font-weight: 700; border-radius: 0 8px 8px 0; }
+</style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- Title -->
+<section>
+  <h2>native_hook Producer 端优化</h2>
+  <h3 style="color:#64748b;">原型实验总结 · 2026.06.18</h3>
+  <p class="small">pink 服务器 · 5 次重复 avg±stddev · 100万 mixed3 迭代</p>
+</section>
+
+<!-- 1. batch64 -->
+<section>
+  <h3>1. batch64 批量发布 <span class="tag">已移植 OH</span></h3>
+  <p class="small">先填 record 再拿锁 + per-thread buffer 攒 64 条批量写入<br>五个 hook 函数全覆盖（malloc/calloc/realloc/aligned_alloc/free）</p>
+  <table>
+    <tr><th>config</th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
+    <tr><td>no-batch（per-record）</td><td>0.364 ± 0.010</td><td>0.988 ± 0.177</td><td>1.424 ± 0.074</td><td>1.426 ± 0.036</td></tr>
+    <tr><td><b>batch64</b></td><td class="green">0.267 ± 0.008</td><td class="green">0.395 ± 0.084</td><td class="green">0.580 ± 0.029</td><td class="green">0.590 ± 0.017</td></tr>
+    <tr style="background:#f0fdf4"><td>改善</td><td class="green">27%</td><td class="green">60%</td><td class="green">59%</td><td class="green">59%</td></tr>
+  </table>
+  <p class="small">拿锁频率 64x ↓ · HookWriter 全局 mutex 临界区足够大 · 多线程尤其受益</p>
+</section>
+
+<!-- 2. TID Sharding -->
+<section>
+  <h3>2. TID 取余分片 <span class="tag">已移植 OH</span></h3>
+  <p class="small">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存 TID</p>
+  <table>
+    <tr><th>config</th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
+    <tr><td>batch64 only</td><td>0.279 ± 0.030</td><td>0.465 ± 0.013</td><td>0.591 ± 0.039</td><td>0.599 ± 0.021</td></tr>
+    <tr><td><b>batch64 + shard auto</b></td><td class="green">0.262 ± 0.001</td><td class="green">0.429 ± 0.012</td><td class="green">0.575 ± 0.021</td><td class="green">0.561 ± 0.006</td></tr>
+    <tr style="background:#f0fdf4"><td>改善</td><td class="green">6%</td><td class="green">8%</td><td class="green">3%</td><td class="green">6%</td></tr>
+  </table>
+  <p class="small">每个线程固定写自己的分片 · 消除 ShareMemoryBlock 内部锁竞争 · batch64 基础上进一步提效</p>
+</section>
+
+<!-- 3. Auto shard -->
+<section>
+  <h3>3. Auto 分片数 <span class="tag">已移植 OH</span></h3>
+  <p class="small"><code>GetShardCount()</code> · g_sharedMemCount≤1 时自动检测 CPU 核数 · clamped 2-16</p>
+  <table>
+    <tr><th>config</th><th>4T</th><th>16T</th></tr>
+    <tr><td>shard=4</td><td>0.401 ± 0.062</td><td>0.566 ± 0.004</td></tr>
+    <tr><td>shard=16</td><td>0.403 ± 0.066</td><td>0.582 ± 0.018</td></tr>
+    <tr><td><b>shard=auto</b></td><td class="green">0.433 ± 0.004</td><td class="green">0.555 ± 0.010</td></tr>
+  </table>
+  <div class="callout">
+    32/64 片不可用 — 每片容量太小（128/64条），batch64 填满分片，频繁溢出退化为全局锁。<br>
+    最优分片数 ≈ 线程数 · auto 模式自动匹配，无需手动配置。
+  </div>
+</section>
+
+<!-- 4. Skew -->
+<section>
+  <h3>4. 偏斜负载（鲁棒性验证）</h3>
+  <p class="small">batch64 + shard auto · 16T · thread#0 承担 P% 总迭代</p>
+  <table>
+    <tr><th>偏斜</th><th>16T 耗时</th></tr>
+    <tr><td>均衡（skew=0）</td><td>0.565 ± 0.013</td></tr>
+    <tr><td>50% on thread#0</td><td>0.551 ± 0.019</td></tr>
+    <tr><td>80% on thread#0</td><td>0.572 ± 0.017</td></tr>
+  </table>
+  <p class="small">偏斜负载下性能稳定 · 溢出机制在分片写满时兜底不丢记录</p>
+</section>
+
+<!-- 5. Complete chain -->
+<section>
+  <h3>5. 完整优化链路</h3>
+  <div style="text-align:left;font-size:0.7em;line-height:1.8;">
+    <p>📌 <b>OH 已有</b>：batch64（record-fill-before-lock + 批量发布）
+    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 拿锁频率 64x↓，1T 提速 27%，多线程 ~60%</span></p>
+    <p>📌 <b>OH 已有</b>：TID 取余分片（<code>GetShardIndex</code>）
+    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 地址分片→线程分片，消除 ShareMemoryBlock 锁竞争，batch64 基础上+3-8%</span></p>
+    <p>📌 <b>OH 已有</b>：auto 分片数（<code>GetShardCount</code>）
+    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 无需手动配置，自动匹配 CPU 核数</span></p>
+    <p>📌 <b>原型验证</b>：偏斜负载 + 溢出
+    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 负载不均时稳定，不丢记录</span></p>
+  </div>
+  <div class="conclusion">★ LD_PRELOAD + batch64 + TID 分片是最优 producer 方案</div>
+</section>
+
+<!-- 6. OH status -->
+<section>
+  <h3>6. OH 代码改动状态</h3>
+  <table>
+    <tr><th>改动</th><th>文件:行</th><th>状态</th></tr>
+    <tr><td>batch64（FlushStage6Batch）</td><td>hook_client.cpp</td><td class="green">✅ 已移植</td></tr>
+    <tr><td>TID 取余分片（GetShardIndex）</td><td>hook_client.cpp:214</td><td class="green">✅ 已移植</td></tr>
+    <tr><td>auto 分片数（GetShardCount）</td><td>hook_client.cpp:214</td><td class="green">✅ 已移植</td></tr>
+    <tr><td>每 StackWriter 独立计数器</td><td>stack_writer.cpp</td><td style="color:#94a3b8">架构已有，无需改</td></tr>
+    <tr><td>SPSC relaxed store</td><td>stack_writer.cpp</td><td style="color:#d97706">📝 标注，等 aarch64 真机</td></tr>
+  </table>
+  <p class="small" style="margin-top:20px;">已 push 至 <code>cyc_nativehook</code> 和 <code>yt_nativehook</code> master 分支</p>
+</section>
+
+<!-- Thank you -->
+<section>
+  <h2 style="font-size:2em;">谢谢</h2>
+  <p class="small">所有数据在 pink 服务器采集 · 5 次重复 · 100万 mixed3 迭代</p>
+  <p class="small"><code>notes/prototype_experiment_summary.md</code></p>
+</section>
+
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.0.0/dist/reveal.js"></script>
+<script>
+Reveal.initialize({ hash: true, slideNumber: 'c/t', width: 1200, height: 800, margin: 0.1 });
+</script>
+</body>
+</html>
