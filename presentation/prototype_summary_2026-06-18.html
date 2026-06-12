@@ -1,140 +1,173 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>native_hook Producer 端优化 — 原型实验总结</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.0.0/dist/reveal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.0.0/dist/theme/white.css">
 <style>
-:root {
-  --r-heading-color: #1a1a2e;
-  --r-main-color: #334155;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: #1e293b; background: #0f172a; line-height: 1.6; }
+
+section.slide {
+  scroll-snap-align: start; min-height: 100vh; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; padding: 60px 5vw; gap: 32px;
 }
-.reveal { font-size: 28px; }
-.reveal h2 { font-size: 1.4em; color: #1a1a2e; margin-bottom: 0.3em; }
-.reveal h3 { font-size: 1.1em; color: #1e40af; margin-bottom: 0.2em; }
-.reveal table { font-size: 0.55em; margin: 0.3em auto; border-collapse: collapse; width: 90%; }
-.reveal th { background: #2563eb; color: white; padding: 8px 10px; font-weight: 600; }
-.reveal td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; }
-.reveal td:first-child { text-align: left; font-weight: 500; }
-.reveal tr:nth-child(even) td { background: #f8fafc; }
-.green { color: #059669; font-weight: 700; }
+section:nth-child(odd) { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
+section:nth-child(even) { background: linear-gradient(135deg, #f1f5f9 0%, #f8fafc 100%); }
+
+h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 800; color: #0f172a; letter-spacing: -0.02em; text-align: center; }
+h3 { font-size: clamp(20px, 3vw, 28px); font-weight: 700; color: #1e40af; }
+.subtitle { color: #64748b; font-size: clamp(14px, 1.5vw, 18px); }
+
+.badge {
+  display: inline-block; background: #dcfce7; color: #15803d; font-size: 0.7em;
+  padding: 2px 10px; border-radius: 12px; font-weight: 600; vertical-align: middle; margin-left: 8px;
+}
+
+table { border-collapse: separate; border-spacing: 0; width: 100%; max-width: 1100px;
+  background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  font-size: clamp(12px, 1.4vw, 16px);
+}
+th { background: #1e40af; color: white; padding: 14px 16px; font-weight: 600; font-size: 0.9em; letter-spacing: 0.02em; }
+td { padding: 12px 16px; text-align: center; border-bottom: 1px solid #f1f5f9; font-variant-numeric: tabular-nums; }
+td:first-child { text-align: left; font-weight: 500; }
+tr:last-child td { border-bottom: none; }
+tr.improve td { background: #f0fdf4; color: #15803d; font-weight: 700; }
+tr.improve td:first-child { color: #15803d; }
+
+.green { color: #15803d; font-weight: 700; }
+.grey { color: #94a3b8; }
 .red { color: #dc2626; }
-.blue { color: #2563eb; font-weight: 700; }
-.gray { color: #94a3b8; font-size: 0.7em; }
-.tag { display: inline-block; background: #ecfdf5; color: #059669; padding: 2px 8px; border-radius: 4px; font-size: 0.55em; margin-left: 8px; }
-.small { font-size: 0.7em; color: #64748b; }
-.callout { background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 20px; margin: 16px 0; text-align: left; font-size: 0.8em; border-radius: 0 8px 8px 0; }
-.conclusion { background: #ecfdf5; border-left: 4px solid #059669; padding: 16px 24px; margin: 20px 0; text-align: center; font-size: 1.1em; font-weight: 700; border-radius: 0 8px 8px 0; }
+
+.callout {
+  background: white; border-radius: 12px; padding: 20px 28px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); max-width: 1100px; width: 100%;
+  font-size: clamp(13px, 1.4vw, 16px); color: #475569;
+}
+
+.chain { text-align: left; line-height: 2.2; font-size: clamp(13px, 1.5vw, 17px); max-width: 900px; }
+.chain .step { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; }
+.chain .num { background: #1e40af; color: white; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85em; flex-shrink: 0; margin-top: 2px; }
+.chain .done .num { background: #15803d; }
+
+.conclusion {
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%); color: white;
+  border-radius: 16px; padding: 28px 40px; text-align: center; font-size: clamp(20px, 2.5vw, 28px);
+  font-weight: 800; letter-spacing: -0.01em; box-shadow: 0 8px 32px rgba(21,128,61,0.2);
+  max-width: 900px;
+}
+
+.hero { text-align: center; }
+.hero h1 { font-size: clamp(36px, 6vw, 64px); font-weight: 900; color: #0f172a; letter-spacing: -0.03em; line-height: 1.1; }
+.hero h1 span { color: #1e40af; }
+
+footer.slide {
+  background: #0f172a; color: #94a3b8; scroll-snap-align: start; min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px;
+}
+footer.slide h2 { color: white; }
+
+nav { position: fixed; bottom: 24px; right: 24px; z-index: 100; display: flex; gap: 8px; }
+nav a { background: white; color: #475569; width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 18px; transition: all 0.2s; }
+nav a:hover { background: #1e40af; color: white; }
 </style>
 </head>
 <body>
-<div class="reveal"><div class="slides">
 
-<!-- Title -->
-<section>
-  <h2>native_hook Producer 端优化</h2>
-  <h3 style="color:#64748b;">原型实验总结 · 2026.06.18</h3>
-  <p class="small">pink 服务器 · 5 次重复 avg±stddev · 100万 mixed3 迭代</p>
+<section class="slide hero">
+  <p class="subtitle" style="margin-bottom:8px;">native_hook Producer 端优化</p>
+  <h1>原型实验<span>总结</span></h1>
+  <p class="subtitle" style="margin-top:12px;">pink 服务器 · 5 次重复 avg±stddev · 100万 mixed3 迭代<br>2026.06.18 组会</p>
 </section>
 
-<!-- 1. batch64 -->
-<section>
-  <h3>1. batch64 批量发布 <span class="tag">已移植 OH</span></h3>
-  <p class="small">先填 record 再拿锁 + per-thread buffer 攒 64 条批量写入<br>五个 hook 函数全覆盖（malloc/calloc/realloc/aligned_alloc/free）</p>
+<section class="slide">
+  <h3>1. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
+  <p class="subtitle">先填 record 再拿锁 + per-thread buffer 攒 64 条 · 五个 hook 函数全覆盖</p>
   <table>
-    <tr><th>config</th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
-    <tr><td>no-batch（per-record）</td><td>0.364 ± 0.010</td><td>0.988 ± 0.177</td><td>1.424 ± 0.074</td><td>1.426 ± 0.036</td></tr>
-    <tr><td><b>batch64</b></td><td class="green">0.267 ± 0.008</td><td class="green">0.395 ± 0.084</td><td class="green">0.580 ± 0.029</td><td class="green">0.590 ± 0.017</td></tr>
-    <tr style="background:#f0fdf4"><td>改善</td><td class="green">27%</td><td class="green">60%</td><td class="green">59%</td><td class="green">59%</td></tr>
+    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
+    <tr><td>no-batch</td><td>0.364s</td><td>0.988s</td><td>1.424s</td><td>1.426s</td></tr>
+    <tr><td><b>batch64</b></td><td class="green">0.267s</td><td class="green">0.395s</td><td class="green">0.580s</td><td class="green">0.590s</td></tr>
+    <tr class="improve"><td>改善</td><td>27%</td><td>60%</td><td>59%</td><td>59%</td></tr>
   </table>
-  <p class="small">拿锁频率 64x ↓ · HookWriter 全局 mutex 临界区足够大 · 多线程尤其受益</p>
+  <div class="callout">拿锁频率 64×↓ · HookWriter 全局 mutex 临界区足够大（tracking + ring write + notify）· 多线程尤其受益</div>
 </section>
 
-<!-- 2. TID Sharding -->
-<section>
-  <h3>2. TID 取余分片 <span class="tag">已移植 OH</span></h3>
-  <p class="small">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存 TID</p>
+<section class="slide">
+  <h3>2. TID 取余分片 <span class="badge">已移植 OH</span></h3>
+  <p class="subtitle">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存</p>
   <table>
-    <tr><th>config</th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
-    <tr><td>batch64 only</td><td>0.279 ± 0.030</td><td>0.465 ± 0.013</td><td>0.591 ± 0.039</td><td>0.599 ± 0.021</td></tr>
-    <tr><td><b>batch64 + shard auto</b></td><td class="green">0.262 ± 0.001</td><td class="green">0.429 ± 0.012</td><td class="green">0.575 ± 0.021</td><td class="green">0.561 ± 0.006</td></tr>
-    <tr style="background:#f0fdf4"><td>改善</td><td class="green">6%</td><td class="green">8%</td><td class="green">3%</td><td class="green">6%</td></tr>
+    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
+    <tr><td>batch64 only</td><td>0.279s</td><td>0.465s</td><td>0.591s</td><td>0.599s</td></tr>
+    <tr><td><b>batch64 + shard</b></td><td class="green">0.262s</td><td class="green">0.429s</td><td class="green">0.575s</td><td class="green">0.561s</td></tr>
+    <tr class="improve"><td>改善</td><td>6%</td><td>8%</td><td>3%</td><td>6%</td></tr>
   </table>
-  <p class="small">每个线程固定写自己的分片 · 消除 ShareMemoryBlock 内部锁竞争 · batch64 基础上进一步提效</p>
+  <div class="callout">每线程固定写自己分片 · 消除 ShareMemoryBlock 内部锁竞争 · batch64 基础上进一步提效</div>
 </section>
 
-<!-- 3. Auto shard -->
-<section>
-  <h3>3. Auto 分片数 <span class="tag">已移植 OH</span></h3>
-  <p class="small"><code>GetShardCount()</code> · g_sharedMemCount≤1 时自动检测 CPU 核数 · clamped 2-16</p>
+<section class="slide">
+  <h3>3. Auto 分片数 <span class="badge">已移植 OH</span></h3>
+  <p class="subtitle"><code>GetShardCount()</code> · g_sharedMemCount ≤ 1 时自动检测 CPU 核数（clamped 2–16）</p>
   <table>
-    <tr><th>config</th><th>4T</th><th>16T</th></tr>
-    <tr><td>shard=4</td><td>0.401 ± 0.062</td><td>0.566 ± 0.004</td></tr>
-    <tr><td>shard=16</td><td>0.403 ± 0.066</td><td>0.582 ± 0.018</td></tr>
-    <tr><td><b>shard=auto</b></td><td class="green">0.433 ± 0.004</td><td class="green">0.555 ± 0.010</td></tr>
+    <tr><th></th><th>4T</th><th>16T</th></tr>
+    <tr><td>shard=4</td><td>0.401s</td><td>0.566s</td></tr>
+    <tr><td>shard=16</td><td>0.403s</td><td>0.582s</td></tr>
+    <tr><td><b>shard=auto</b></td><td class="green">0.433s</td><td class="green">0.555s</td></tr>
   </table>
   <div class="callout">
-    32/64 片不可用 — 每片容量太小（128/64条），batch64 填满分片，频繁溢出退化为全局锁。<br>
-    最优分片数 ≈ 线程数 · auto 模式自动匹配，无需手动配置。
+    32/64 片不可用 — 每片太小，batch64 填满分片，频繁溢出退化为全局锁。<br>
+    最优分片数 ≈ 线程数 · auto 自动匹配，无需手动配置。
   </div>
 </section>
 
-<!-- 4. Skew -->
-<section>
-  <h3>4. 偏斜负载（鲁棒性验证）</h3>
-  <p class="small">batch64 + shard auto · 16T · thread#0 承担 P% 总迭代</p>
+<section class="slide">
+  <h3>4. 偏斜负载 · 鲁棒性验证</h3>
+  <p class="subtitle">batch64 + shard auto · 16T · thread#0 承担 P% 总迭代</p>
   <table>
     <tr><th>偏斜</th><th>16T 耗时</th></tr>
-    <tr><td>均衡（skew=0）</td><td>0.565 ± 0.013</td></tr>
-    <tr><td>50% on thread#0</td><td>0.551 ± 0.019</td></tr>
-    <tr><td>80% on thread#0</td><td>0.572 ± 0.017</td></tr>
+    <tr><td>均衡</td><td>0.565s</td></tr>
+    <tr><td>50% on thread#0</td><td>0.551s</td></tr>
+    <tr><td>80% on thread#0</td><td>0.572s</td></tr>
   </table>
-  <p class="small">偏斜负载下性能稳定 · 溢出机制在分片写满时兜底不丢记录</p>
+  <div class="callout">偏斜负载下性能稳定 · 分片写满时溢出机制兜底不丢记录</div>
 </section>
 
-<!-- 5. Complete chain -->
-<section>
+<section class="slide">
   <h3>5. 完整优化链路</h3>
-  <div style="text-align:left;font-size:0.7em;line-height:1.8;">
-    <p>📌 <b>OH 已有</b>：batch64（record-fill-before-lock + 批量发布）
-    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 拿锁频率 64x↓，1T 提速 27%，多线程 ~60%</span></p>
-    <p>📌 <b>OH 已有</b>：TID 取余分片（<code>GetShardIndex</code>）
-    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 地址分片→线程分片，消除 ShareMemoryBlock 锁竞争，batch64 基础上+3-8%</span></p>
-    <p>📌 <b>OH 已有</b>：auto 分片数（<code>GetShardCount</code>）
-    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 无需手动配置，自动匹配 CPU 核数</span></p>
-    <p>📌 <b>原型验证</b>：偏斜负载 + 溢出
-    <br><span class="small">&nbsp;&nbsp;&nbsp;→ 负载不均时稳定，不丢记录</span></p>
+  <div class="chain">
+    <div class="step done"><span class="num">1</span><span><b>batch64</b> — 先填 record 再拿锁 + 批量发布 &nbsp;<span class="grey">1T: 27% · 16T: 59%</span></span></div>
+    <div class="step done"><span class="num">2</span><span><b>TID 取余分片</b> — 地址分片→线程分片，消除锁竞争 &nbsp;<span class="grey">batch64 基础上+3~8%</span></span></div>
+    <div class="step done"><span class="num">3</span><span><b>Auto 分片数</b> — 自动检测 CPU 核数，无需手动配置 &nbsp;<span class="grey">clamped 2–16</span></span></div>
+    <div class="step"><span class="num">4</span><span><b>偏斜负载验证</b> — 负载不均时稳定，溢出兜底 &nbsp;<span class="grey">鲁棒性确认</span></span></div>
   </div>
   <div class="conclusion">★ LD_PRELOAD + batch64 + TID 分片是最优 producer 方案</div>
 </section>
 
-<!-- 6. OH status -->
-<section>
+<section class="slide">
   <h3>6. OH 代码改动状态</h3>
   <table>
-    <tr><th>改动</th><th>文件:行</th><th>状态</th></tr>
+    <tr><th>改动</th><th>文件</th><th></th></tr>
     <tr><td>batch64（FlushStage6Batch）</td><td>hook_client.cpp</td><td class="green">✅ 已移植</td></tr>
     <tr><td>TID 取余分片（GetShardIndex）</td><td>hook_client.cpp:214</td><td class="green">✅ 已移植</td></tr>
     <tr><td>auto 分片数（GetShardCount）</td><td>hook_client.cpp:214</td><td class="green">✅ 已移植</td></tr>
-    <tr><td>每 StackWriter 独立计数器</td><td>stack_writer.cpp</td><td style="color:#94a3b8">架构已有，无需改</td></tr>
-    <tr><td>SPSC relaxed store</td><td>stack_writer.cpp</td><td style="color:#d97706">📝 标注，等 aarch64 真机</td></tr>
+    <tr><td>每 StackWriter 独立计数器</td><td>stack_writer.cpp</td><td class="grey">架构已有，无需改</td></tr>
+    <tr><td>SPSC relaxed store</td><td>stack_writer.cpp</td><td style="color:#d97706">📝 标注，等真机</td></tr>
   </table>
-  <p class="small" style="margin-top:20px;">已 push 至 <code>cyc_nativehook</code> 和 <code>yt_nativehook</code> master 分支</p>
+  <p class="subtitle" style="margin-top:16px;">已 push 至 yt_nativehook master</p>
 </section>
 
-<!-- Thank you -->
-<section>
-  <h2 style="font-size:2em;">谢谢</h2>
-  <p class="small">所有数据在 pink 服务器采集 · 5 次重复 · 100万 mixed3 迭代</p>
-  <p class="small"><code>notes/prototype_experiment_summary.md</code></p>
-</section>
+<footer class="slide">
+  <h2 style="font-size:3em;">谢谢</h2>
+  <p class="subtitle" style="color:#94a3b8;">所有数据 pink 采集 · 5 次重复 · 100万 mixed3 迭代</p>
+</footer>
 
-</div></div>
-<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.0.0/dist/reveal.js"></script>
-<script>
-Reveal.initialize({ hash: true, slideNumber: 'c/t', width: 1200, height: 800, margin: 0.1 });
-</script>
+<nav>
+  <a href="#top" title="Top">↑</a>
+  <a href="#bottom" title="Bottom">↓</a>
+</nav>
+<div id="bottom"></div>
 </body>
 </html>
