@@ -127,10 +127,8 @@ nav a:hover { background: #1e40af; color: white; }
   <h3>4. 偏斜负载 · 鲁棒性验证</h3>
   <p class="subtitle">batch64 + shard auto · 16T · thread#0 承担 P% 总迭代</p>
   <table>
-    <tr><th>偏斜</th><th>16T 耗时</th></tr>
-    <tr><td>均衡</td><td>0.565s</td></tr>
-    <tr><td>50% on thread#0</td><td>0.551s</td></tr>
-    <tr><td>80% on thread#0</td><td>0.572s</td></tr>
+    <tr><th>偏斜</th><th>0%</th><th>20%</th><th>35%</th><th>50%</th><th>65%</th><th>80%</th><th>95%</th></tr>
+    <tr><td>16T</td><td>0.578s</td><td>0.540s</td><td>0.483s</td><td class="green">0.433s</td><td class="green">0.392s</td><td class="green">0.349s</td><td class="green">0.314s</td></tr>
   </table>
   <div class="callout">偏斜负载下性能稳定 · 分片写满时溢出机制兜底不丢记录</div>
 </section>
