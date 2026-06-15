@@ -8,7 +8,7 @@ Instructions for future agents continuing the `native_hook` Plan B optimization 
 
 - GitHub: `git@github.com:YiChiChen1106/Nativehook_linux_planb.git`
 - GitLab mirror: `https://gitlab.youtune.tech/cychi/nativehook_linux_planb.git`
-- Active branch: `optimize/writer-ring-sharded-batch`
+- Active branch: `optimize/next`
 - Build: CMake (local WSL + pink server)
 - Purpose: **Fast-iteration ablation experiments and benchmark**
 
@@ -111,7 +111,17 @@ ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no cychi@10.87.235.29 \
 
 ## Current Branch Commit Stack
 
-`optimize/writer-ring-sharded-batch` above `main` (17 commits, 2026-06-08):
+`optimize/next` above `main` (23 commits, 2026-06-18):
+
+New (2026-06-18):
+- `43716e3` Add slide 8: OH root 后验证步骤 (6-step roadmap)
+- `1a6f3a8` Add full skew sweep: 0%-95% in 7 steps, 5 reps each
+- `9dbcbeb` Add slide 7: remaining bottlenecks & future directions
+- `a3d70f9` Redesign HTML: modern custom style, no framework dependency
+- `bcde28f` Add HTML presentation for 6/18 group meeting (reveal.js, 6 slides)
+- `27ba85d` Add comprehensive prototype experiment summary (5 reps, OH-focused)
+
+Earlier (from optimize/writer-ring-sharded-batch):
 
 Deadlock fix & ablation data:
 - `e19571b` Fix sub-stage 36 deadlock: remove double-lock on StackWriter inner_mutex_
@@ -178,6 +188,8 @@ Current result (batch64 vs no-batch):
 | 4 | 2.718s | 0.859s | 68.4% |
 | 8 | 3.121s | 1.278s | 59.1% |
 | 16 | 3.408s | 1.340s | 60.7% |
+
+**Latest authoritative benchmark**: `notes/prototype_experiment_summary.md` — 5-rep avg±stddev, pink server, OH-validated optimizations (batch64, TID sharding, auto shard count, skew sweep).
 
 ## Current Status & Next Steps
 
