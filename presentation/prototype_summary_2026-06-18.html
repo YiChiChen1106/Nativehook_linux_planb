@@ -178,6 +178,20 @@ nav a:hover { background: #1e40af; color: white; }
   </div>
 </section>
 
+<section class="slide">
+  <h3>8. OH Root 后验证步骤</h3>
+  <p class="subtitle">拿到 OH 设备 root 权限后的执行路线图</p>
+
+  <div class="chain">
+    <div class="step"><span class="num">1</span><span><b>编译部署</b><br><span class="grey">clone yt_nativehook → GN 编译 → adb push hook_preload.so → 设 LD_PRELOAD</span></span></div>
+    <div class="step"><span class="num">2</span><span><b>功能验证</b><br><span class="grey">跑 malloc/free 测试程序，确认 hook 拦截正常、consumer 收到数据、无 crash</span></span></div>
+    <div class="step"><span class="num">3</span><span><b>基线 benchmark</b><br><span class="grey">无 hook 基线 + batch64 + batch64+sharded 三组，1T/4T/8T，每点 5 次重复</span></span></div>
+    <div class="step"><span class="num">4</span><span><b>对比原型预测</b><br><span class="grey">真机 8T 数据 vs 原型 8T 数据，验证 batch64 改善幅度和 sharded 额外收益是否一致</span></span></div>
+    <div class="step"><span class="num">5</span><span><b>参数调优</b><br><span class="grey">shard 数量、batch 大小、FLUSH_FLAG 在真机上 sweep，确认最优值</span></span></div>
+    <div class="step"><span class="num">6</span><span><b>提交 MR</b><br><span class="grey">真机数据支撑 → yt_nativehook 提 MR → 组内 review → 合入</span></span></div>
+  </div>
+</section>
+
 <footer class="slide">
   <h2 style="font-size:3em;">谢谢</h2>
   <p class="subtitle" style="color:#94a3b8;">所有数据 pink 采集 · 5 次重复 · 100万 mixed3 迭代</p>
