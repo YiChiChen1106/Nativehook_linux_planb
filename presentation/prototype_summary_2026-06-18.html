@@ -200,12 +200,70 @@ nav a:hover { background: #1e40af; color: white; }
 <section class="slide">
   <h3>3. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle">先填 record 再拿锁 + per-thread buffer 攒 64 条 · 五个 hook 函数全覆盖</p>
-  <table>
-    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
-    <tr><td>no-batch</td><td>0.364s</td><td>0.988s</td><td>1.424s</td><td>1.426s</td></tr>
-    <tr><td><b>batch64</b></td><td class="green">0.267s</td><td class="green">0.395s</td><td class="green">0.580s</td><td class="green">0.590s</td></tr>
-    <tr class="improve"><td>改善</td><td>27%</td><td>60%</td><td>59%</td><td>59%</td></tr>
-  </table>
+
+  <!-- Bar chart: no-batch vs batch64 -->
+  <div style="max-width:1000px;width:100%;background:white;border-radius:12px;padding:24px 20px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="display:flex;gap:32px;align-items:flex-end;justify-content:center;">
+      <!-- 1T -->
+      <div style="text-align:center;">
+        <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;height:200px;">
+          <div style="width:28px;background:#cbd5e1;border-radius:4px 4px 0 0;height:51px;position:relative;" title="no-batch 0.364s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#94a3b8;">0.36</span>
+          </div>
+          <div style="width:28px;background:#2563eb;border-radius:4px 4px 0 0;height:37px;position:relative;" title="batch64 0.267s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#2563eb;font-weight:600;">0.27</span>
+          </div>
+        </div>
+        <div style="font-size:0.75em;font-weight:600;color:#1e293b;margin-top:6px;">1T</div>
+        <div style="font-size:0.6em;color:#15803d;font-weight:600;">↓27%</div>
+      </div>
+      <!-- 4T -->
+      <div style="text-align:center;">
+        <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;height:200px;">
+          <div style="width:28px;background:#cbd5e1;border-radius:4px 4px 0 0;height:139px;position:relative;" title="no-batch 0.988s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#94a3b8;">0.99</span>
+          </div>
+          <div style="width:28px;background:#2563eb;border-radius:4px 4px 0 0;height:55px;position:relative;" title="batch64 0.395s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#2563eb;font-weight:600;">0.40</span>
+          </div>
+        </div>
+        <div style="font-size:0.75em;font-weight:600;color:#1e293b;margin-top:6px;">4T</div>
+        <div style="font-size:0.6em;color:#15803d;font-weight:600;">↓60%</div>
+      </div>
+      <!-- 8T -->
+      <div style="text-align:center;">
+        <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;height:200px;">
+          <div style="width:28px;background:#cbd5e1;border-radius:4px 4px 0 0;height:200px;position:relative;" title="no-batch 1.424s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#94a3b8;">1.42</span>
+          </div>
+          <div style="width:28px;background:#2563eb;border-radius:4px 4px 0 0;height:81px;position:relative;" title="batch64 0.580s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#2563eb;font-weight:600;">0.58</span>
+          </div>
+        </div>
+        <div style="font-size:0.75em;font-weight:600;color:#1e293b;margin-top:6px;">8T</div>
+        <div style="font-size:0.6em;color:#15803d;font-weight:600;">↓59%</div>
+      </div>
+      <!-- 16T -->
+      <div style="text-align:center;">
+        <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;height:200px;">
+          <div style="width:28px;background:#cbd5e1;border-radius:4px 4px 0 0;height:200px;position:relative;" title="no-batch 1.426s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#94a3b8;">1.43</span>
+          </div>
+          <div style="width:28px;background:#2563eb;border-radius:4px 4px 0 0;height:83px;position:relative;" title="batch64 0.590s">
+            <span style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.55em;color:#2563eb;font-weight:600;">0.59</span>
+          </div>
+        </div>
+        <div style="font-size:0.75em;font-weight:600;color:#1e293b;margin-top:6px;">16T</div>
+        <div style="font-size:0.6em;color:#15803d;font-weight:600;">↓59%</div>
+      </div>
+    </div>
+    <!-- Legend -->
+    <div style="display:flex;gap:20px;justify-content:center;margin-top:12px;">
+      <div style="display:flex;align-items:center;gap:6px;"><div style="width:12px;height:12px;background:#cbd5e1;border-radius:2px;"></div><span style="font-size:0.65em;color:#64748b;">per-record</span></div>
+      <div style="display:flex;align-items:center;gap:6px;"><div style="width:12px;height:12px;background:#2563eb;border-radius:2px;"></div><span style="font-size:0.65em;color:#64748b;">batch64</span></div>
+    </div>
+  </div>
+
   <div class="callout">HookWriter 全局 mutex 临界区足够大 · 拿锁频率 64×↓ · 多线程尤其受益</div>
 </section>
 
@@ -213,6 +271,65 @@ nav a:hover { background: #1e40af; color: white; }
 <section class="slide">
   <h3>4. TID 取余分片 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存</p>
+
+  <!-- Routing comparison diagram -->
+  <div style="max-width:1000px;width:100%;display:flex;gap:24px;">
+    <!-- BEFORE: addr-based -->
+    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="font-size:0.9em;font-weight:700;color:#dc2626;text-align:center;margin-bottom:16px;">改前：地址取余</div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <!-- Threads -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">T0</div>
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">T1</div>
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">T2</div>
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">T3</div>
+        </div>
+        <!-- Chaotic arrows -->
+        <div style="flex:1;text-align:center;color:#fca5a5;font-size:0.7em;line-height:1.8;">
+          addr % 4 →<br>addr % 4 →<br>addr % 4 →<br>addr % 4 →
+        </div>
+        <!-- Shards -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">Shard 0</div>
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">Shard 1</div>
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">Shard 2</div>
+          <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#dc2626;">Shard 3</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.6em;color:#dc2626;margin-top:10px;">不同线程可能撞同一块</div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display:flex;align-items:center;font-size:2em;color:#2563eb;font-weight:700;">→</div>
+
+    <!-- AFTER: TID-based -->
+    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="font-size:0.9em;font-weight:700;color:#15803d;text-align:center;margin-bottom:16px;">改后：线程取余</div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <!-- Threads -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">T0</div>
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">T1</div>
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">T2</div>
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">T3</div>
+        </div>
+        <!-- Straight arrows -->
+        <div style="flex:1;text-align:center;color:#86efac;font-size:0.7em;line-height:1.8;">
+          TID%4 →<br>TID%4 →<br>TID%4 →<br>TID%4 →
+        </div>
+        <!-- Shards (one per thread) -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">Shard 0</div>
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">Shard 1</div>
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">Shard 2</div>
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:6px;padding:6px 10px;font-size:0.65em;font-weight:600;color:#15803d;">Shard 3</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.6em;color:#15803d;margin-top:10px;">每线程固定写自己分片 · 无竞争</div>
+    </div>
+  </div>
+
   <table>
     <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
     <tr><td>batch64 only</td><td>0.279s</td><td>0.465s</td><td>0.591s</td><td>0.599s</td></tr>
