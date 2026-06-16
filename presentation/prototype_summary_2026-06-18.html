@@ -85,102 +85,35 @@ nav a:hover { background: #1e40af; color: white; }
   <p class="subtitle" style="margin-top:12px;">pink 服务器 · 5 次重复 avg±stddev · 100万 mixed3 迭代<br>2026.06.18 组会</p>
 </section>
 
-<!-- 2. Overflow -->
+<!-- 2. Skew + Overflow (combined) -->
 <section class="slide">
-  <h3>1. 溢出机制 <span class="badge-grey">原型验证</span></h3>
-  <p class="subtitle">分片写满时 fallback 到全局环形区，不丢记录</p>
+  <h3>1. 偏斜负载测试 & 溢出兜底</h3>
+  <p class="subtitle">batch64 + shard auto · 5 次重复 · thread#0 承担 P% 总迭代</p>
 
-  <!-- Visual: shards + overflow -->
-  <div style="max-width:1000px;width:100%;">
-    <!-- Normal shards -->
-    <div style="display:flex; gap:8px; margin-bottom:4px; align-items:flex-end;">
-      <div style="flex:1;background:#dbeafe;border-radius:8px;padding:12px 8px;text-align:center;border:2px solid #93c5fd;">
-        <div style="font-size:0.75em;color:#1e40af;font-weight:600;">Shard 0</div><div style="font-size:0.65em;color:#64748b;">TID 0</div>
-        <div style="margin-top:6px;background:#93c5fd;height:8px;border-radius:4px;width:30%;margin:6px auto 0;"></div><div style="font-size:0.55em;color:#94a3b8;">30%</div>
-      </div>
-      <div style="flex:1;background:#dbeafe;border-radius:8px;padding:12px 8px;text-align:center;border:2px solid #93c5fd;">
-        <div style="font-size:0.75em;color:#1e40af;font-weight:600;">Shard 1</div><div style="font-size:0.65em;color:#64748b;">TID 1</div>
-        <div style="margin-top:6px;background:#93c5fd;height:8px;border-radius:4px;width:20%;margin:6px auto 0;"></div><div style="font-size:0.55em;color:#94a3b8;">20%</div>
-      </div>
-      <div style="flex:1;background:#fef3c7;border-radius:8px;padding:12px 8px;text-align:center;border:2px solid #f59e0b;position:relative;">
-        <div style="font-size:0.75em;color:#92400e;font-weight:600;">Shard 2</div><div style="font-size:0.65em;color:#64748b;">TID 2</div>
-        <div style="margin-top:6px;background:#f59e0b;height:8px;border-radius:4px;width:100%;margin:6px auto 0;"></div><div style="font-size:0.6em;color:#d97706;font-weight:600;">FULL</div>
-        <div style="position:absolute;bottom:-28px;left:50%;color:#d97706;font-size:1.5em;transform:translateX(-50%);">↓</div>
-      </div>
-      <div style="flex:1;background:#dbeafe;border-radius:8px;padding:12px 8px;text-align:center;border:2px solid #93c5fd;">
-        <div style="font-size:0.75em;color:#1e40af;font-weight:600;">Shard 3</div><div style="font-size:0.65em;color:#64748b;">TID 3</div>
-        <div style="margin-top:6px;background:#93c5fd;height:8px;border-radius:4px;width:15%;margin:6px auto 0;"></div><div style="font-size:0.55em;color:#94a3b8;">15%</div>
+  <!-- Load distribution bars -->
+  <div style="max-width:1000px;width:100%;display:flex;gap:16px;">
+    <div style="flex:1;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+      <div style="font-size:0.75em;font-weight:700;color:#1e293b;margin-bottom:6px;text-align:center;">均衡 (0%)</div>
+      <div style="display:flex;gap:2px;align-items:flex-end;height:70px;">
+        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div><div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div>
+        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div><div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div>
       </div>
     </div>
-
-    <!-- Arrow + overflow area -->
-    <div style="display:flex;align-items:center;gap:12px;margin-top:28px;">
-      <div style="flex:3;"></div>
-      <div style="font-size:1.5em;color:#d97706;font-weight:700;flex:0;text-align:center;">↳</div>
-      <div style="flex:6;background:#fffbeb;border:2px dashed #f59e0b;border-radius:12px;padding:14px 20px;text-align:center;">
-        <div style="font-size:0.85em;color:#92400e;font-weight:700;">全局溢出区（有锁）</div>
-        <div style="font-size:0.7em;color:#a16207;margin-top:4px;">inner_mutex_ 保护 · 偏斜时偶尔触发 · 不丢记录</div>
-      </div>
-    </div>
-
-    <!-- Legend -->
-    <div style="display:flex;gap:24px;justify-content:center;margin-top:16px;">
-      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;background:#dbeafe;border:2px solid #93c5fd;border-radius:3px;"></div><span style="font-size:0.75em;color:#475569;">无锁快路径</span></div>
-      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;background:#fef3c7;border:2px solid #f59e0b;border-radius:3px;"></div><span style="font-size:0.75em;color:#475569;">写满触发溢出</span></div>
-      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;background:#fffbeb;border:2px dashed #f59e0b;border-radius:3px;"></div><span style="font-size:0.75em;color:#475569;">溢出区（有锁）</span></div>
-    </div>
-  </div>
-
-  <div class="callout">
-    <b>设计思路</b>：不追求完美分片（无法预测哪个线程忙），而是给安全的兜底。<br>
-    均衡负载下从不触发 · 偏斜负载下偶尔触发 · 性能影响可忽略 · 保证不丢记录。
-  </div>
-</section>
-
-<!-- 3. Skew -->
-<section class="slide">
-  <h3>2. 偏斜负载测试</h3>
-  <p class="subtitle">batch64 + shard auto · 16T · thread#0 承担 P% 总迭代 · 5 次重复</p>
-
-  <!-- Visual: load distribution bars -->
-  <div style="max-width:1000px;width:100%;display:flex;gap:24px;">
-    <!-- Balanced -->
-    <div style="flex:1;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="font-size:0.8em;font-weight:700;color:#1e293b;margin-bottom:8px;text-align:center;">均衡 (skew=0)</div>
-      <div style="display:flex;gap:2px;align-items:flex-end;height:100px;">
-        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;" title="Thread 0"></div>
-        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#93c5fd;height:100%;border-radius:2px 2px 0 0;"></div>
-      </div>
-      <div style="text-align:center;font-size:0.7em;color:#64748b;margin-top:4px;">所有线程均分</div>
-    </div>
-
-    <!-- 50% -->
-    <div style="flex:1;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="font-size:0.8em;font-weight:700;color:#1e293b;margin-bottom:8px;text-align:center;">偏斜 50%</div>
-      <div style="display:flex;gap:2px;align-items:flex-end;height:100px;">
-        <div style="flex:3;background:#f59e0b;height:100%;border-radius:2px 2px 0 0;" title="Thread 0 (hot)"></div>
-        <div style="flex:1;background:#e2e8f0;height:12%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#e2e8f0;height:12%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#e2e8f0;height:12%;border-radius:2px 2px 0 0;"></div>
+    <div style="flex:1;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+      <div style="font-size:0.75em;font-weight:700;color:#1e293b;margin-bottom:6px;text-align:center;">偏斜 50%</div>
+      <div style="display:flex;gap:2px;align-items:flex-end;height:70px;">
+        <div style="flex:3;background:#f59e0b;height:100%;border-radius:2px 2px 0 0;"></div>
+        <div style="flex:1;background:#e2e8f0;height:12%;border-radius:2px 2px 0 0;"></div><div style="flex:1;background:#e2e8f0;height:12%;border-radius:2px 2px 0 0;"></div>
         <div style="flex:1;background:#e2e8f0;height:12%;border-radius:2px 2px 0 0;"></div>
       </div>
-      <div style="text-align:center;font-size:0.7em;color:#64748b;margin-top:4px;">thread#0 占 50%</div>
     </div>
-
-    <!-- 95% -->
-    <div style="flex:1;background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="font-size:0.8em;font-weight:700;color:#1e293b;margin-bottom:8px;text-align:center;">极端偏斜 95%</div>
-      <div style="display:flex;gap:2px;align-items:flex-end;height:100px;">
-        <div style="flex:6;background:#dc2626;height:100%;border-radius:2px 2px 0 0;" title="Thread 0 (hot)"></div>
-        <div style="flex:1;background:#e2e8f0;height:3%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#e2e8f0;height:3%;border-radius:2px 2px 0 0;"></div>
-        <div style="flex:1;background:#e2e8f0;height:3%;border-radius:2px 2px 0 0;"></div>
+    <div style="flex:1;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+      <div style="font-size:0.75em;font-weight:700;color:#1e293b;margin-bottom:6px;text-align:center;">极端 95%</div>
+      <div style="display:flex;gap:2px;align-items:flex-end;height:70px;">
+        <div style="flex:6;background:#dc2626;height:100%;border-radius:2px 2px 0 0;"></div>
+        <div style="flex:1;background:#e2e8f0;height:3%;border-radius:2px 2px 0 0;"></div><div style="flex:1;background:#e2e8f0;height:3%;border-radius:2px 2px 0 0;"></div>
         <div style="flex:1;background:#e2e8f0;height:3%;border-radius:2px 2px 0 0;"></div>
       </div>
-      <div style="text-align:center;font-size:0.7em;color:#64748b;margin-top:4px;">thread#0 占 95%</div>
     </div>
   </div>
 
@@ -191,14 +124,14 @@ nav a:hover { background: #1e40af; color: white; }
     <tr><td>16T</td><td>0.575s</td><td>0.527s</td><td class="green">0.430s</td><td class="green">0.346s</td><td class="green">0.300s</td></tr>
   </table>
   <div class="callout">
-    偏斜越重越快 — hot thread 独占分片无竞争 · 95% 接近单线程性能（~0.26s）<br>
-    验证了：极端负载不均下分片方案不会退化，溢出机制有效兜底。
+    偏斜越重越快，4T/8T/16T 趋势一致 · 95% 极端偏斜接近单线程性能<br>
+    原型加溢出机制兜底：分片写满不丢记录，均衡负载从不触发，偏斜时偶尔触发。
   </div>
 </section>
 
 <!-- 4. batch64 -->
 <section class="slide">
-  <h3>3. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
+  <h3>2. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle">先填 record 再拿锁 + per-thread buffer 攒 64 条 · 五个 hook 函数全覆盖</p>
 
   <!-- Bar chart: no-batch vs batch64 -->
@@ -269,7 +202,7 @@ nav a:hover { background: #1e40af; color: white; }
 
 <!-- 5. TID Sharding -->
 <section class="slide">
-  <h3>4. TID 取余分片 <span class="badge">已移植 OH</span></h3>
+  <h3>3. TID 取余分片 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存</p>
 
   <!-- Routing comparison diagram -->
@@ -341,7 +274,7 @@ nav a:hover { background: #1e40af; color: white; }
 
 <!-- 6. Auto shard -->
 <section class="slide">
-  <h3>5. Auto 分片数 <span class="badge">已移植 OH</span></h3>
+  <h3>4. Auto 分片数 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle"><code>GetShardCount()</code> · g_sharedMemCount ≤ 1 时自动检测 CPU 核数 · clamped 2–16</p>
   <table>
     <tr><th></th><th>4T</th><th>16T</th></tr>
@@ -354,7 +287,7 @@ nav a:hover { background: #1e40af; color: white; }
 
 <!-- 7. Summary + OH status -->
 <section class="slide">
-  <h3>6. OH 已移植优化汇总 <span class="badge">5 reps, pink</span></h3>
+  <h3>5. OH 已移植优化汇总 <span class="badge">5 reps, pink</span></h3>
 
   <table>
     <tr><th>改动</th><th>文件</th><th>效果</th><th></th></tr>
@@ -377,7 +310,7 @@ nav a:hover { background: #1e40af; color: white; }
 
 <!-- 8. Root plan -->
 <section class="slide">
-  <h3>7. 剩余瓶颈 & 后续计划</h3>
+  <h3>6. 剩余瓶颈 & 后续计划</h3>
 
   <div class="callout" style="margin-bottom: 16px;">
     <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 不是锁竞争（sharded 已消除），
