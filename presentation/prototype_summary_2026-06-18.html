@@ -185,8 +185,10 @@ nav a:hover { background: #1e40af; color: white; }
   </div>
 
   <table>
-    <tr><th>偏斜</th><th>0%</th><th>20%</th><th>35%</th><th>50%</th><th>65%</th><th>80%</th><th>95%</th></tr>
-    <tr><td>16T</td><td>0.578s</td><td>0.540s</td><td>0.483s</td><td class="green">0.433s</td><td class="green">0.392s</td><td class="green">0.349s</td><td class="green">0.314s</td></tr>
+    <tr><th>偏斜</th><th>0%（均衡）</th><th>20%</th><th>50%</th><th>80%</th><th>95%（极端）</th></tr>
+    <tr><td>4T</td><td>0.460s</td><td>0.431s</td><td>0.405s</td><td class="green">0.367s</td><td class="green">0.293s</td></tr>
+    <tr><td>8T</td><td>0.529s</td><td>0.543s</td><td>0.460s</td><td class="green">0.333s</td><td class="green">0.309s</td></tr>
+    <tr><td>16T</td><td>0.575s</td><td>0.527s</td><td class="green">0.430s</td><td class="green">0.346s</td><td class="green">0.300s</td></tr>
   </table>
   <div class="callout">
     偏斜越重越快 — hot thread 独占分片无竞争 · 95% 接近单线程性能（~0.26s）<br>
