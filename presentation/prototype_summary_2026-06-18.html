@@ -308,24 +308,50 @@ nav a:hover { background: #1e40af; color: white; }
   <div class="conclusion" style="margin-top:16px;">★ LD_PRELOAD + batch64 + TID 分片是最优 producer 方案</div>
 </section>
 
-<!-- 8. Root plan -->
+<!-- 8. What's next -->
 <section class="slide">
   <h3>6. 剩余瓶颈 & 后续计划</h3>
 
-  <div class="callout" style="margin-bottom: 16px;">
-    <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 不是锁竞争（sharded 已消除），
-    而是 CPU 调度竞争——17 个线程（16 producer + 1 consumer）抢 4 个核。<br>
-    当前旗舰手机 8-12 核，sharded ring 的 per-CPU 优势在真实硬件上会更显著。
+  <div class="callout" style="margin-bottom: 20px;">
+    <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 是 CPU 调度竞争，不是锁问题。
+    真机 8-12 核上 sharded ring 的 per-CPU 优势会更显著。
   </div>
 
-  <p class="subtitle">拿到 OH root 后的执行路线图</p>
-  <div class="chain">
-    <div class="step"><span class="num">1</span><span><b>编译部署</b> — clone yt_nativehook → GN 编译 → adb push → 设 LD_PRELOAD</span></div>
-    <div class="step"><span class="num">2</span><span><b>功能验证</b> — 跑 malloc/free 测试，确认 hook 正常、consumer 收到数据</span></div>
-    <div class="step"><span class="num">3</span><span><b>基线 benchmark</b> — 无 hook + batch64 + batch64+sharded 三组，1T/4T/8T，5 reps</span></div>
-    <div class="step"><span class="num">4</span><span><b>对比原型预测</b> — 真机数据 vs 原型数据，验证改善幅度和趋势</span></div>
-    <div class="step"><span class="num">5</span><span><b>参数调优</b> — shard 数量、batch 大小、FLUSH_FLAG 在真机上 sweep</span></div>
-    <div class="step"><span class="num">6</span><span><b>提交 MR</b> — 真机数据支撑 → yt_nativehook 提 MR → 组内 review → 合入</span></div>
+  <!-- Two scenarios -->
+  <div style="display:flex;gap:20px;max-width:1000px;width:100%;">
+    <!-- No root: OH team self-test -->
+    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="font-size:1em;font-weight:700;color:#d97706;margin-bottom:12px;text-align:center;">
+        ⚡ 拿不到 root（OH 团队自测）
+      </div>
+      <div style="font-size:0.8em;color:#475569;line-height:1.8;">
+        <p>yt_nativehook master 上已有 <code>TESTING_GUIDE.md</code></p>
+        <p style="margin-top:8px;"><b>OH 的人只需：</b></p>
+        <p>1. clone yt_nativehook</p>
+        <p>2. GN 编译 hook 模块</p>
+        <p>3. 按指南跑三组对比：<br>
+        &nbsp;&nbsp;&nbsp;无 hook → 默认配置 → TID 分片</p>
+        <p>4. 记录耗时 + 检查 dropped</p>
+        <p style="margin-top:8px;color:#94a3b8;font-size:0.9em;">
+        不需要理解改动细节，照着指南操作即可。
+        </p>
+      </div>
+    </div>
+
+    <!-- With root: my plan -->
+    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);border:2px solid #2563eb;">
+      <div style="font-size:1em;font-weight:700;color:#2563eb;margin-bottom:12px;text-align:center;">
+        ✓ 拿到 root（我测）
+      </div>
+      <div style="font-size:0.8em;color:#475569;line-height:1.8;">
+        <p>1. 编译部署 → adb push → LD_PRELOAD</p>
+        <p>2. 功能验证（hook 正常、consumer 收到数据）</p>
+        <p>3. 基线 benchmark（三组 × 三线程数 × 5 reps）</p>
+        <p>4. 对比原型预测</p>
+        <p>5. 参数调优（shard、batch、FLUSH_FLAG）</p>
+        <p>6. 提交 MR → 组内 review → 合入</p>
+      </div>
+    </div>
   </div>
 </section>
 
