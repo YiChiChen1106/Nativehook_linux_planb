@@ -285,10 +285,57 @@ nav a:hover { background: #1e40af; color: white; }
   <div class="callout">32/64 片不可用（每片太小，batch 填满分片）· 最优分片数 ≈ 线程数 · auto 自动匹配</div>
 </section>
 
+<!-- 6. Experiment inventory -->
+<section class="slide">
+  <h3>5. 实验全景</h3>
+  <p class="subtitle">原型共 15 项实验，3 项移植到 OH，其余用于排除错误方向或验证架构</p>
+
+  <div style="display:flex;gap:20px;max-width:1000px;width:100%;">
+    <!-- LEFT: Ported -->
+    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);border-top:4px solid #15803d;">
+      <div style="font-size:0.9em;font-weight:700;color:#15803d;margin-bottom:14px;">已移植 OH（3 项）</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:0.8em;">
+        <div style="background:#f0fdf4;padding:8px 12px;border-radius:6px;"><b>batch64 批量发布</b><br><span class="grey">1T +27% · 16T +59%</span></div>
+        <div style="background:#f0fdf4;padding:8px 12px;border-radius:6px;"><b>TID 取余分片</b><br><span class="grey">batch64 基础上 +3~8%</span></div>
+        <div style="background:#f0fdf4;padding:8px 12px;border-radius:6px;"><b>auto 分片数</b><br><span class="grey">自动匹配 CPU 核数</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Not ported -->
+    <div style="flex:1.5;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="font-size:0.9em;font-weight:700;color:#64748b;margin-bottom:14px;">未移植，用于排错 / 验证（12 项）</div>
+      <div style="display:flex;gap:20px;font-size:0.75em;color:#475569;line-height:2;">
+        <div style="flex:1;">
+          <b>排错</b><br>
+          死锁修复<br>
+          溢出机制<br><br>
+          <b>否定实验</b><br>
+          StackWriter batch<br>
+          锁延迟模拟<br>
+          CAS 锁替换<br><br>
+          <b>架构分析</b><br>
+          eBPF 重对比<br>
+          eBPF vs LD_PRELOAD 架构对比
+        </div>
+        <div style="flex:1;">
+          <b>测量基础设施</b><br>
+          三层拆解 (34/35/36)<br>
+          Consumer profiling<br>
+          Flush threshold sweep<br><br>
+          <b>方向验证</b><br>
+          Shard 数量 sweep<br>
+          偏斜负载测试 (4/8/16T)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">15 个实验 → 3 个可移植改动。其余 12 个排除了错误选项、验证了架构假设、建立了测量方法。</div>
+</section>
+
 <!-- 7. Summary + OH status -->
 <section class="slide">
-  <h3>5. OH 已移植优化汇总 <span class="badge">5 reps, pink</span></h3>
-  <p class="subtitle">原型共跑十几组实验，最终收敛到三个可移植改动。其余是排除错误选项或验证架构方向。</p>
+  <h3>6. 完整链路 & 代码状态</h3>
 
   <table>
     <tr><th>改动</th><th>文件</th><th>效果</th><th></th></tr>
@@ -311,7 +358,7 @@ nav a:hover { background: #1e40af; color: white; }
 
 <!-- 8. What's next -->
 <section class="slide">
-  <h3>6. 剩余瓶颈 & 后续计划</h3>
+  <h3>7. 剩余瓶颈 & 后续计划</h3>
 
   <div class="callout" style="margin-bottom: 20px;">
     <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 是 CPU 调度竞争，不是锁问题。
