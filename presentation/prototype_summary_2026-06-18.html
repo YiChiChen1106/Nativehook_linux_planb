@@ -74,9 +74,6 @@ nav a { background: white; color: #475569; width: 36px; height: 36px; border-rad
   display: flex; align-items: center; justify-content: center; text-decoration: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 18px; transition: all 0.2s; }
 nav a:hover { background: #1e40af; color: white; }
-
-.two-col { display: flex; gap: 24px; max-width: 1000px; width: 100%; align-items: flex-start; }
-.two-col > * { flex: 1; }
 </style>
 </head>
 <body>
@@ -88,48 +85,9 @@ nav a:hover { background: #1e40af; color: white; }
   <p class="subtitle" style="margin-top:12px;">pink 服务器 · 5 次重复 avg±stddev · 100万 mixed3 迭代<br>2026.06.18 组会</p>
 </section>
 
-<!-- 2. batch64 -->
+<!-- 2. Overflow -->
 <section class="slide">
-  <h3>1. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
-  <p class="subtitle">先填 record 再拿锁 + per-thread buffer 攒 64 条 · 五个 hook 函数全覆盖</p>
-  <table>
-    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
-    <tr><td>no-batch</td><td>0.364s</td><td>0.988s</td><td>1.424s</td><td>1.426s</td></tr>
-    <tr><td><b>batch64</b></td><td class="green">0.267s</td><td class="green">0.395s</td><td class="green">0.580s</td><td class="green">0.590s</td></tr>
-    <tr class="improve"><td>改善</td><td>27%</td><td>60%</td><td>59%</td><td>59%</td></tr>
-  </table>
-  <div class="callout">HookWriter 全局 mutex 临界区足够大 · 拿锁频率 64×↓ · 多线程尤其受益</div>
-</section>
-
-<!-- 3. TID Sharding -->
-<section class="slide">
-  <h3>2. TID 取余分片 <span class="badge">已移植 OH</span></h3>
-  <p class="subtitle">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存</p>
-  <table>
-    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
-    <tr><td>batch64 only</td><td>0.279s</td><td>0.465s</td><td>0.591s</td><td>0.599s</td></tr>
-    <tr><td><b>batch64 + shard</b></td><td class="green">0.262s</td><td class="green">0.429s</td><td class="green">0.575s</td><td class="green">0.561s</td></tr>
-    <tr class="improve"><td>改善</td><td>6%</td><td>8%</td><td>3%</td><td>6%</td></tr>
-  </table>
-  <div class="callout">每线程固定写自己分片 · 消除 ShareMemoryBlock 内部锁竞争 · batch64 基础上进一步提效</div>
-</section>
-
-<!-- 4. Auto shard -->
-<section class="slide">
-  <h3>3. Auto 分片数 <span class="badge">已移植 OH</span></h3>
-  <p class="subtitle"><code>GetShardCount()</code> · g_sharedMemCount ≤ 1 时自动检测 CPU 核数 · clamped 2–16</p>
-  <table>
-    <tr><th></th><th>4T</th><th>16T</th></tr>
-    <tr><td>shard=4</td><td>0.401s</td><td>0.566s</td></tr>
-    <tr><td>shard=16</td><td>0.403s</td><td>0.582s</td></tr>
-    <tr><td><b>shard=auto</b></td><td class="green">0.433s</td><td class="green">0.555s</td></tr>
-  </table>
-  <div class="callout">32/64 片不可用（每片太小，batch 填满分片）· 最优分片数 ≈ 线程数 · auto 自动匹配</div>
-</section>
-
-<!-- 5. Overflow -->
-<section class="slide">
-  <h3>4. 溢出机制 <span class="badge-grey">原型验证</span></h3>
+  <h3>1. 溢出机制 <span class="badge-grey">原型验证</span></h3>
   <p class="subtitle">分片写满时 fallback 到全局环形区（inner_mutex_），不丢记录</p>
 
   <div style="display:flex; gap:20px; max-width:1000px; width:100%;">
@@ -149,9 +107,9 @@ nav a:hover { background: #1e40af; color: white; }
   </div>
 </section>
 
-<!-- 6. Skew -->
+<!-- 3. Skew -->
 <section class="slide">
-  <h3>5. 偏斜负载测试</h3>
+  <h3>2. 偏斜负载测试</h3>
   <p class="subtitle">batch64 + shard auto · 16T · thread#0 承担 P% 总迭代 · 5 次重复</p>
   <table>
     <tr><th>偏斜</th><th>0%</th><th>20%</th><th>35%</th><th>50%</th><th>65%</th><th>80%</th><th>95%</th></tr>
@@ -161,6 +119,45 @@ nav a:hover { background: #1e40af; color: white; }
     偏斜越重越快 — hot thread 独占分片无竞争 · 95% 接近单线程性能（~0.26s）<br>
     验证了：极端负载不均下分片方案不会退化，溢出机制有效兜底。
   </div>
+</section>
+
+<!-- 4. batch64 -->
+<section class="slide">
+  <h3>3. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
+  <p class="subtitle">先填 record 再拿锁 + per-thread buffer 攒 64 条 · 五个 hook 函数全覆盖</p>
+  <table>
+    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
+    <tr><td>no-batch</td><td>0.364s</td><td>0.988s</td><td>1.424s</td><td>1.426s</td></tr>
+    <tr><td><b>batch64</b></td><td class="green">0.267s</td><td class="green">0.395s</td><td class="green">0.580s</td><td class="green">0.590s</td></tr>
+    <tr class="improve"><td>改善</td><td>27%</td><td>60%</td><td>59%</td><td>59%</td></tr>
+  </table>
+  <div class="callout">HookWriter 全局 mutex 临界区足够大 · 拿锁频率 64×↓ · 多线程尤其受益</div>
+</section>
+
+<!-- 5. TID Sharding -->
+<section class="slide">
+  <h3>4. TID 取余分片 <span class="badge">已移植 OH</span></h3>
+  <p class="subtitle">地址取余选块 → 线程取余选块 · <code>GetShardIndex()</code> · thread_local 缓存</p>
+  <table>
+    <tr><th></th><th>1T</th><th>4T</th><th>8T</th><th>16T</th></tr>
+    <tr><td>batch64 only</td><td>0.279s</td><td>0.465s</td><td>0.591s</td><td>0.599s</td></tr>
+    <tr><td><b>batch64 + shard</b></td><td class="green">0.262s</td><td class="green">0.429s</td><td class="green">0.575s</td><td class="green">0.561s</td></tr>
+    <tr class="improve"><td>改善</td><td>6%</td><td>8%</td><td>3%</td><td>6%</td></tr>
+  </table>
+  <div class="callout">每线程固定写自己分片 · 消除 ShareMemoryBlock 内部锁竞争 · batch64 基础上进一步提效</div>
+</section>
+
+<!-- 6. Auto shard -->
+<section class="slide">
+  <h3>5. Auto 分片数 <span class="badge">已移植 OH</span></h3>
+  <p class="subtitle"><code>GetShardCount()</code> · g_sharedMemCount ≤ 1 时自动检测 CPU 核数 · clamped 2–16</p>
+  <table>
+    <tr><th></th><th>4T</th><th>16T</th></tr>
+    <tr><td>shard=4</td><td>0.401s</td><td>0.566s</td></tr>
+    <tr><td>shard=16</td><td>0.403s</td><td>0.582s</td></tr>
+    <tr><td><b>shard=auto</b></td><td class="green">0.433s</td><td class="green">0.555s</td></tr>
+  </table>
+  <div class="callout">32/64 片不可用（每片太小，batch 填满分片）· 最优分片数 ≈ 线程数 · auto 自动匹配</div>
 </section>
 
 <!-- 7. Summary + OH status -->
@@ -188,16 +185,22 @@ nav a:hover { background: #1e40af; color: white; }
 
 <!-- 8. Root plan -->
 <section class="slide">
-  <h3>7. OH Root 后验证步骤</h3>
-  <p class="subtitle">拿到 OH 设备 root 权限后的执行路线图</p>
+  <h3>7. 剩余瓶颈 & 后续计划</h3>
 
+  <div class="callout" style="margin-bottom: 16px;">
+    <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 不是锁竞争（sharded 已消除），
+    而是 CPU 调度竞争——17 个线程（16 producer + 1 consumer）抢 4 个核。<br>
+    当前旗舰手机 8-12 核，sharded ring 的 per-CPU 优势在真实硬件上会更显著。
+  </div>
+
+  <p class="subtitle">拿到 OH root 后的执行路线图</p>
   <div class="chain">
-    <div class="step"><span class="num">1</span><span><b>编译部署</b><br><span class="grey">clone yt_nativehook → GN 编译 → adb push → 设 LD_PRELOAD</span></span></div>
-    <div class="step"><span class="num">2</span><span><b>功能验证</b><br><span class="grey">跑 malloc/free 测试，确认 hook 正常、consumer 收到数据</span></span></div>
-    <div class="step"><span class="num">3</span><span><b>基线 benchmark</b><br><span class="grey">无 hook + batch64 + batch64+sharded 三组，1T/4T/8T，5 reps</span></span></div>
-    <div class="step"><span class="num">4</span><span><b>对比原型预测</b><br><span class="grey">真机数据 vs 原型数据，验证改善幅度和趋势是否一致</span></span></div>
-    <div class="step"><span class="num">5</span><span><b>参数调优</b><br><span class="grey">shard 数量、batch 大小、FLUSH_FLAG 在真机上 sweep</span></span></div>
-    <div class="step"><span class="num">6</span><span><b>提交 MR</b><br><span class="grey">真机数据支撑 → yt_nativehook 提 MR → 组内 review → 合入</span></span></div>
+    <div class="step"><span class="num">1</span><span><b>编译部署</b> — clone yt_nativehook → GN 编译 → adb push → 设 LD_PRELOAD</span></div>
+    <div class="step"><span class="num">2</span><span><b>功能验证</b> — 跑 malloc/free 测试，确认 hook 正常、consumer 收到数据</span></div>
+    <div class="step"><span class="num">3</span><span><b>基线 benchmark</b> — 无 hook + batch64 + batch64+sharded 三组，1T/4T/8T，5 reps</span></div>
+    <div class="step"><span class="num">4</span><span><b>对比原型预测</b> — 真机数据 vs 原型数据，验证改善幅度和趋势</span></div>
+    <div class="step"><span class="num">5</span><span><b>参数调优</b> — shard 数量、batch 大小、FLUSH_FLAG 在真机上 sweep</span></div>
+    <div class="step"><span class="num">6</span><span><b>提交 MR</b> — 真机数据支撑 → yt_nativehook 提 MR → 组内 review → 合入</span></div>
   </div>
 </section>
 
