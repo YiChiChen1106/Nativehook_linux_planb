@@ -316,6 +316,74 @@ nav a:hover { background: #1e40af; color: white; }
 <section class="slide">
   <h3>4. Auto 分片数 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle"><code>GetShardCount()</code> · g_sharedMemCount ≤ 1 时自动检测 CPU 核数 · clamped 2–16</p>
+
+  <!-- Visual: three scenarios -->
+  <div style="max-width:1000px;width:100%;display:flex;gap:14px;margin-bottom:4px;">
+    <!-- Too few -->
+    <div style="flex:1;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);text-align:center;">
+      <div style="font-size:0.75em;font-weight:700;color:#dc2626;margin-bottom:8px;">分片太少</div>
+      <div style="display:flex;gap:3px;justify-content:center;margin-bottom:8px;">
+        <div style="width:36px;height:36px;background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.6em;color:#dc2626;">T0</div>
+        <div style="width:36px;height:36px;background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.6em;color:#dc2626;">T1</div>
+        <div style="width:36px;height:36px;background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.6em;color:#dc2626;">T2</div>
+        <div style="width:36px;height:36px;background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.6em;color:#dc2626;">T3</div>
+      </div>
+      <div style="font-size:0.55em;color:#dc2626;">↓ 只有 2 片</div>
+      <div style="display:flex;gap:3px;justify-content:center;margin-top:4px;">
+        <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:4px;padding:3px 8px;font-size:0.55em;color:#dc2626;">S0</div>
+        <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:4px;padding:3px 8px;font-size:0.55em;color:#dc2626;">S1</div>
+      </div>
+      <div style="font-size:0.55em;color:#dc2626;margin-top:4px;">多个线程抢同一片</div>
+    </div>
+
+    <!-- Just right -->
+    <div style="flex:1.3;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);text-align:center;border:2px solid #86efac;">
+      <div style="font-size:0.75em;font-weight:700;color:#15803d;margin-bottom:8px;">auto：匹配 CPU 核数 ✓</div>
+      <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:8px;">
+        <div style="text-align:center;">
+          <div style="font-size:0.6em;color:#64748b;">CPU</div>
+          <div style="font-size:1.2em;font-weight:800;color:#1e40af;">4</div>
+          <div style="font-size:0.5em;color:#94a3b8;">核</div>
+        </div>
+        <div style="font-size:1em;color:#15803d;">→</div>
+        <div style="text-align:center;">
+          <div style="font-size:0.6em;color:#64748b;">分片</div>
+          <div style="font-size:1.2em;font-weight:800;color:#15803d;">4</div>
+          <div style="font-size:0.5em;color:#94a3b8;">片</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:3px;justify-content:center;">
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">T0</div>
+        <div style="font-size:0.6em;color:#94a3b8;display:flex;align-items:center;">→</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">S0</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">T1</div>
+        <div style="font-size:0.6em;color:#94a3b8;display:flex;align-items:center;">→</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">S1</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">T2</div>
+        <div style="font-size:0.6em;color:#94a3b8;display:flex;align-items:center;">→</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">S2</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">T3</div>
+        <div style="font-size:0.6em;color:#94a3b8;display:flex;align-items:center;">→</div>
+        <div style="width:30px;height:30px;background:#dcfce7;border:2px solid #86efac;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.5em;color:#15803d;">S3</div>
+      </div>
+      <div style="font-size:0.55em;color:#15803d;margin-top:6px;">每线程独占一片 · 无竞争</div>
+    </div>
+
+    <!-- Too many -->
+    <div style="flex:1;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);text-align:center;">
+      <div style="font-size:0.75em;font-weight:700;color:#d97706;margin-bottom:8px;">分片太多</div>
+      <div style="font-size:1.2em;font-weight:800;color:#d97706;margin-bottom:4px;">32 片</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-bottom:6px;">
+        <div style="width:16px;height:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:2px;"></div>
+        <div style="width:16px;height:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:2px;"></div>
+        <div style="width:16px;height:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:2px;"></div>
+        <div style="width:16px;height:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:2px;"></div>
+        <div style="font-size:0.5em;color:#d97706;display:flex;align-items:center;">...</div>
+      </div>
+      <div style="font-size:0.55em;color:#d97706;">每片太小 · batch64 填满<br>频繁溢出 → 退化</div>
+    </div>
+  </div>
+
   <table>
     <tr><th></th><th>4T</th><th>16T</th></tr>
     <tr><td>shard=4</td><td>0.401s</td><td>0.566s</td></tr>
