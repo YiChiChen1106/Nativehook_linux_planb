@@ -134,6 +134,46 @@ nav a:hover { background: #1e40af; color: white; }
   <h3>2. batch64 批量发布 <span class="badge">已移植 OH</span></h3>
   <p class="subtitle">先填 record 再拿锁 + per-thread buffer 攒 64 条 · 五个 hook 函数全覆盖</p>
 
+  <!-- Before/after flow diagram -->
+  <div style="max-width:1000px;width:100%;display:flex;gap:16px;margin-bottom:8px;">
+    <!-- BEFORE -->
+    <div style="flex:1;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+      <div style="font-size:0.75em;font-weight:700;color:#dc2626;text-align:center;margin-bottom:10px;">改前：每条都拿锁</div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+        <div style="display:flex;gap:4px;align-items:center;font-size:0.7em;">
+          <span style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:3px 8px;">fill</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#fee2e2;border:2px solid #ef4444;border-radius:4px;padding:3px 8px;font-weight:700;color:#dc2626;">🔒 LOCK</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:3px 8px;">write</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:3px 8px;">notify</span>
+        </div>
+        <div style="font-size:0.6em;color:#94a3b8;">× 100万次</div>
+      </div>
+    </div>
+    <!-- AFTER -->
+    <div style="flex:1.2;background:white;border-radius:10px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);border:2px solid #86efac;">
+      <div style="font-size:0.75em;font-weight:700;color:#15803d;text-align:center;margin-bottom:10px;">改后：攒 64 条拿一次锁</div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+        <div style="display:flex;gap:4px;align-items:center;font-size:0.7em;">
+          <span style="background:#dcfce7;border:1px solid #86efac;border-radius:4px;padding:3px 8px;">fill</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#dcfce7;border:2px dashed #86efac;border-radius:4px;padding:3px 8px;">buffer</span>
+        </div>
+        <div style="font-size:0.55em;color:#94a3b8;">↓ 攒满 64 条</div>
+        <div style="display:flex;gap:4px;align-items:center;font-size:0.7em;">
+          <span style="background:#dcfce7;border:2px solid #22c55e;border-radius:4px;padding:3px 8px;font-weight:700;color:#15803d;">🔒 LOCK</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#dcfce7;border:1px solid #86efac;border-radius:4px;padding:3px 8px;">write×64</span>
+          <span style="color:#94a3b8;">→</span>
+          <span style="background:#dcfce7;border:1px solid #86efac;border-radius:4px;padding:3px 8px;">notify</span>
+        </div>
+        <div style="font-size:0.6em;color:#15803d;">× 1.5万次（锁频率 64×↓）</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bar chart: no-batch vs batch64 -->
   <div style="max-width:1000px;width:100%;background:white;border-radius:12px;padding:24px 20px 12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
     <div style="display:flex;gap:32px;align-items:flex-end;justify-content:center;">
