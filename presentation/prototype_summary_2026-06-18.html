@@ -469,8 +469,10 @@ nav a:hover { background: #1e40af; color: white; }
   <h3>7. 剩余瓶颈 & 后续计划</h3>
 
   <div class="callout" style="margin-bottom: 20px;">
-    <b>当前局限：pink 只有 4 核。</b> 16T 比 1T 慢 2× 是 CPU 调度竞争，不是锁问题。
-    真机 8-12 核上 sharded ring 的 per-CPU 优势会更显著。
+    <b>当前局限：pink 只有 4 核。</b> 16T 时 17 个线程（16 producer + 1 consumer）抢 4 个核。
+    sharded ring 消除了锁竞争，但消除不了 OS 调度——线程被切走就得让出 CPU，
+    每个线程实际只分到 ~1/4 核的算力，加上上下文切换开销。
+    真机 8-12 核以上，调度瓶颈自然消失，per-CPU 优势会更显著。
   </div>
 
   <!-- Two scenarios -->
