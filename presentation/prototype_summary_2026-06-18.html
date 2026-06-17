@@ -237,7 +237,12 @@ nav a:hover { background: #1e40af; color: white; }
     </div>
   </div>
 
-  <div class="callout">HookWriter 全局 mutex 临界区足够大 · 拿锁频率 64×↓ · 多线程尤其受益</div>
+  <div class="callout">
+    <b>为什么有效：</b>HookWriter 的全局锁临界区包裹了 tracking、thread name、ring write 多个操作，单次持锁时间长。<br>
+    逐条模式每条 record 都要拿一次锁，16T 下锁竞争严重。batch64 把 64 条 record 的锁操作合并成一次，<br>
+    拿锁频率从 100 万次降到 1.5 万次。先填 record 再拿锁进一步缩短了临界区——<br>
+    pid、tid、timestamp 这些字段和共享状态无关，放在锁外填，锁内只做必须保护的 ring write。
+  </div>
 </section>
 
 <!-- 5. TID Sharding -->
@@ -309,7 +314,12 @@ nav a:hover { background: #1e40af; color: white; }
     <tr><td><b>batch64 + shard</b></td><td class="green">0.262s</td><td class="green">0.429s</td><td class="green">0.575s</td><td class="green">0.561s</td></tr>
     <tr class="improve"><td>改善</td><td>6%</td><td>8%</td><td>3%</td><td>6%</td></tr>
   </table>
-  <div class="callout">每线程固定写自己分片 · 消除 ShareMemoryBlock 内部锁竞争 · batch64 基础上进一步提效</div>
+  <div class="callout">
+    <b>为什么地址分片不够：</b>OH 代码原有 `addr % g_sharedMemCount` 选块，不同线程操作不同地址<br>
+    可能算出同一个余数，撞进同一块共享内存，仍然在 ShareMemoryBlock 的内部锁上竞争。<br>
+    <b>改后：</b>`tid % g_sharedMemCount` 保证同一线程始终写同一分片。分片数 ≥ 线程数时，<br>
+    每个分片只有一个写者，内部锁直接省掉。GetShardIndex() 用 thread_local 缓存，只调一次 gettid。
+  </div>
 </section>
 
 <!-- 6. Auto shard -->
@@ -390,7 +400,12 @@ nav a:hover { background: #1e40af; color: white; }
     <tr><td>shard=16</td><td>0.403s</td><td>0.582s</td></tr>
     <tr><td><b>shard=auto</b></td><td class="green">0.433s</td><td class="green">0.555s</td></tr>
   </table>
-  <div class="callout">32/64 片不可用（每片太小，batch 填满分片）· 最优分片数 ≈ 线程数 · auto 自动匹配</div>
+  <div class="callout">
+    <b>最优分片数 ≈ 活跃线程数 ≈ CPU 核数。</b>太少 → 多线程抢同一片，有竞争。<br>
+    太多 → 每片容量太小，batch64 的 64 条填满分片，频繁溢出退化为全局锁。<br>
+    auto 模式通过 `sysconf(_SC_NPROCESSORS_ONLN)` 自动检测，clamped 2-16，无需手动配置。<br>
+    原型 sweep 确认：4 核 pink 上 shard=4 与 shard=16 性能相当，auto 选择了合理的默认值。
+  </div>
 </section>
 
 <!-- 6. Experiment inventory -->
