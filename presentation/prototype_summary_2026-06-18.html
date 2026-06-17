@@ -338,12 +338,12 @@ nav a:hover { background: #1e40af; color: white; }
   <h3>6. 完整链路 & 代码状态</h3>
 
   <table>
-    <tr><th>改动</th><th>文件</th><th>效果</th><th></th></tr>
-    <tr><td>batch64 批量发布</td><td>hook_client.cpp</td><td>1T: 27% · 16T: 59%</td><td class="green">✅</td></tr>
-    <tr><td>TID 取余分片</td><td>hook_client.cpp:214</td><td>batch64 基础上 +3~8%</td><td class="green">✅</td></tr>
-    <tr><td>auto 分片数</td><td>hook_client.cpp:214</td><td>自动匹配 CPU 核数</td><td class="green">✅</td></tr>
-    <tr><td>溢出机制</td><td>原型 stack_writer.cpp</td><td>分片满时兜底不丢记录</td><td style="color:#d97706">● 原型</td></tr>
-    <tr><td>偏斜负载验证</td><td>原型 benchmark</td><td>0-95% 偏斜无退化</td><td style="color:#d97706">● 原型</td></tr>
+    <tr><th>改动</th><th>commit</th><th>代码量</th><th>效果</th><th></th></tr>
+    <tr><td>batch64 批量发布</td><td style="font-size:0.8em;font-family:monospace;">7e0a349f6</td><td>+180 / -62</td><td>1T: 27% · 16T: 59%</td><td class="green">✅</td></tr>
+    <tr><td>TID 取余分片</td><td style="font-size:0.8em;font-family:monospace;">240c29044</td><td>+31 / -21</td><td>batch64 基础上 +3~8%</td><td class="green">✅</td></tr>
+    <tr><td>auto 分片数</td><td style="font-size:0.8em;font-family:monospace;">9c2444677</td><td>+15 / -1</td><td>自动匹配 CPU 核数</td><td class="green">✅</td></tr>
+    <tr><td>溢出机制</td><td style="color:#94a3b8;">—</td><td style="color:#94a3b8;">—</td><td>分片满时兜底不丢记录</td><td style="color:#d97706">● 原型</td></tr>
+    <tr><td>偏斜负载验证</td><td style="color:#94a3b8;">—</td><td style="color:#94a3b8;">—</td><td>0-95% 偏斜无退化</td><td style="color:#d97706">● 原型</td></tr>
   </table>
 
   <div class="chain" style="max-width:850px; margin-top:12px;">
