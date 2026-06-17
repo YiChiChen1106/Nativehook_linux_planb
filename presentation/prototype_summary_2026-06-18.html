@@ -460,6 +460,25 @@ nav a:hover { background: #1e40af; color: white; }
 <section class="slide">
   <h3>6. 完整链路 & 代码状态</h3>
 
+  <!-- End-to-end comparison -->
+  <div style="max-width:1000px;width:100%;display:flex;gap:16px;margin-bottom:4px;">
+    <div style="flex:1;background:#fef2f2;border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:0.75em;color:#dc2626;font-weight:700;margin-bottom:8px;">原始（无优化）</div>
+      <div style="display:flex;gap:20px;justify-content:center;">
+        <div><div style="font-size:0.6em;color:#94a3b8;">1T</div><div style="font-size:1.4em;font-weight:800;color:#dc2626;">0.364s</div></div>
+        <div><div style="font-size:0.6em;color:#94a3b8;">16T</div><div style="font-size:1.4em;font-weight:800;color:#dc2626;">1.426s</div></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;font-size:1.5em;color:#64748b;">→</div>
+    <div style="flex:1;background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;border:2px solid #86efac;">
+      <div style="font-size:0.75em;color:#15803d;font-weight:700;margin-bottom:8px;">全部三项优化后</div>
+      <div style="display:flex;gap:20px;justify-content:center;">
+        <div><div style="font-size:0.6em;color:#94a3b8;">1T</div><div style="font-size:1.4em;font-weight:800;color:#15803d;">0.262s</div><div style="font-size:0.6em;color:#15803d;">↓28%</div></div>
+        <div><div style="font-size:0.6em;color:#94a3b8;">16T</div><div style="font-size:1.4em;font-weight:800;color:#15803d;">0.561s</div><div style="font-size:0.6em;color:#15803d;">↓61%</div></div>
+      </div>
+    </div>
+  </div>
+
   <table>
     <tr><th>改动</th><th>commit</th><th>代码量</th><th>效果</th><th></th></tr>
     <tr><td>batch64 批量发布</td><td style="font-size:0.8em;font-family:monospace;">7e0a349f6</td><td>+180 / -62</td><td>1T: 27% · 16T: 59%</td><td class="green">✅</td></tr>
