@@ -255,30 +255,29 @@ nav a:hover { background: #1e40af; color: white; }
     <!-- BEFORE: addr-based -->
     <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <div style="font-size:0.9em;font-weight:700;color:#dc2626;text-align:center;margin-bottom:14px;">改前：地址取余</div>
-      <div style="position:relative;height:180px;">
-        <!-- Threads on left -->
-        <div style="position:absolute;left:0;top:10px;display:flex;flex-direction:column;gap:22px;">
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T0</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T1</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T2</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T3</div>
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T0</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#fca5a5;font-weight:700;">↘</span>
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S1</span>
         </div>
-        <!-- Shards on right -->
-        <div style="position:absolute;right:0;top:10px;display:flex;flex-direction:column;gap:22px;">
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S0</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S1</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S2</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S3</div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T1</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#f87171;font-weight:700;">↗</span>
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S0</span>
         </div>
-        <!-- Crossing lines (chaotic routing) -->
-        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 200 210">
-          <line x1="40" y1="26" x2="164" y2="134" stroke="#fca5a5" stroke-width="2"/>
-          <line x1="40" y1="80" x2="164" y2="26" stroke="#f87171" stroke-width="2"/>
-          <line x1="40" y1="134" x2="164" y2="188" stroke="#fca5a5" stroke-width="2"/>
-          <line x1="40" y1="188" x2="164" y2="80" stroke="#f87171" stroke-width="2"/>
-        </svg>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T2</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#fca5a5;font-weight:700;">↘</span>
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S3</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">T3</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#f87171;font-weight:700;">↖</span>
+          <span style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#dc2626;width:36px;text-align:center;">S2</span>
+        </div>
       </div>
-      <div style="text-align:center;font-size:0.6em;color:#dc2626;margin-top:4px;">addr % 4 随机映射 · 可能碰撞</div>
+      <div style="text-align:center;font-size:0.6em;color:#dc2626;margin-top:8px;">addr % 4 随机映射 · 交叉 · 可能碰撞</div>
     </div>
 
     <!-- Arrow -->
@@ -287,30 +286,29 @@ nav a:hover { background: #1e40af; color: white; }
     <!-- AFTER: TID-based -->
     <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);border:2px solid #86efac;">
       <div style="font-size:0.9em;font-weight:700;color:#15803d;text-align:center;margin-bottom:14px;">改后：线程取余</div>
-      <div style="position:relative;height:180px;">
-        <!-- Threads on left -->
-        <div style="position:absolute;left:0;top:10px;display:flex;flex-direction:column;gap:22px;">
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T0</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T1</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T2</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T3</div>
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T0</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#86efac;font-weight:700;">→</span>
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S0</span>
         </div>
-        <!-- Shards on right -->
-        <div style="position:absolute;right:0;top:10px;display:flex;flex-direction:column;gap:22px;">
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S0</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S1</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S2</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S3</div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T1</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#86efac;font-weight:700;">→</span>
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S1</span>
         </div>
-        <!-- Straight one-to-one lines -->
-        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 200 210">
-          <line x1="40" y1="26" x2="164" y2="26" stroke="#86efac" stroke-width="3"/>
-          <line x1="40" y1="80" x2="164" y2="80" stroke="#86efac" stroke-width="3"/>
-          <line x1="40" y1="134" x2="164" y2="134" stroke="#86efac" stroke-width="3"/>
-          <line x1="40" y1="188" x2="164" y2="188" stroke="#86efac" stroke-width="3"/>
-        </svg>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T2</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#86efac;font-weight:700;">→</span>
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S2</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">T3</span>
+          <span style="flex:1;text-align:center;font-size:1.2em;color:#86efac;font-weight:700;">→</span>
+          <span style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:5px 10px;font-size:0.65em;font-weight:700;color:#15803d;width:36px;text-align:center;">S3</span>
+        </div>
       </div>
-      <div style="text-align:center;font-size:0.6em;color:#15803d;margin-top:4px;">TID % 4 固定映射 · 一对一 · 无竞争</div>
+      <div style="text-align:center;font-size:0.6em;color:#15803d;margin-top:8px;">TID % 4 固定映射 · 一对一 · 无竞争</div>
     </div>
   </div>
 
