@@ -253,50 +253,48 @@ nav a:hover { background: #1e40af; color: white; }
   <!-- Routing comparison diagram -->
   <div style="max-width:1000px;width:100%;display:flex;gap:24px;">
     <!-- BEFORE: addr-based -->
-    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="flex:1;background:white;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <div style="font-size:0.9em;font-weight:700;color:#dc2626;text-align:center;margin-bottom:14px;">改前：地址取余</div>
-      <div style="display:flex;gap:12px;">
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#dc2626;">T0</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#dc2626;">T1</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#dc2626;">T2</div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#dc2626;">T3</div>
+      <div style="display:flex;gap:20px;justify-content:center;">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#dc2626;text-align:center;">T0</div>
+          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#dc2626;text-align:center;">T1</div>
+          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#dc2626;text-align:center;">T2</div>
+          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#dc2626;text-align:center;">T3</div>
         </div>
-        <div style="display:flex;align-items:center;color:#fca5a5;font-size:1em;">⇢</div>
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <!-- T0,T2 → S1 (collision) -->
-          <div style="background:#fee2e2;border:2px solid #ef4444;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#dc2626;">S0<br><span style="font-size:0.85em;color:#ef4444;">T0,T2 ⚡</span></div>
-          <!-- T1,T3 → S1 (collision) -->
-          <div style="background:#fee2e2;border:2px solid #ef4444;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#dc2626;">S1<br><span style="font-size:0.85em;color:#ef4444;">T1,T3 ⚡</span></div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#dc2626;">S2<br><span style="color:#94a3b8;">空闲</span></div>
-          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#dc2626;">S3<br><span style="color:#94a3b8;">空闲</span></div>
+        <div style="display:flex;align-items:center;font-size:1.3em;color:#fca5a5;">→</div>
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div style="background:#fee2e2;border:2px solid #ef4444;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#dc2626;text-align:center;">S0<br><span style="font-size:0.8em;color:#ef4444;">T0 · T2</span></div>
+          <div style="background:#fee2e2;border:2px solid #ef4444;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#dc2626;text-align:center;">S1<br><span style="font-size:0.8em;color:#ef4444;">T1 · T3</span></div>
+          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#dc2626;text-align:center;">S2<br><span style="color:#94a3b8;font-size:0.75em;">空</span></div>
+          <div style="background:#fef2f2;border:2px solid #fca5a5;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#dc2626;text-align:center;">S3<br><span style="color:#94a3b8;font-size:0.75em;">空</span></div>
         </div>
       </div>
-      <div style="text-align:center;font-size:0.6em;color:#dc2626;margin-top:8px;">多个线程挤同一分片 · 碰撞竞争 · 有空闲浪费</div>
+      <div style="text-align:center;font-size:0.65em;color:#dc2626;margin-top:10px;">碰撞 · 空闲 · 随机</div>
     </div>
 
     <!-- Arrow -->
     <div style="display:flex;align-items:center;font-size:2em;color:#2563eb;font-weight:700;">→</div>
 
     <!-- AFTER: TID-based -->
-    <div style="flex:1;background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04);border:2px solid #86efac;">
+    <div style="flex:1;background:white;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04);border:2px solid #86efac;">
       <div style="font-size:0.9em;font-weight:700;color:#15803d;text-align:center;margin-bottom:14px;">改后：线程取余</div>
-      <div style="display:flex;gap:12px;">
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#15803d;">T0</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#15803d;">T1</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#15803d;">T2</div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:6px 12px;font-size:0.7em;font-weight:700;color:#15803d;">T3</div>
+      <div style="display:flex;gap:20px;justify-content:center;">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#15803d;text-align:center;">T0</div>
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#15803d;text-align:center;">T1</div>
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#15803d;text-align:center;">T2</div>
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.75em;font-weight:700;color:#15803d;text-align:center;">T3</div>
         </div>
-        <div style="display:flex;align-items:center;color:#86efac;font-size:1em;">→</div>
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#15803d;">S0<br><span style="color:#15803d;">← T0</span></div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#15803d;">S1<br><span style="color:#15803d;">← T1</span></div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#15803d;">S2<br><span style="color:#15803d;">← T2</span></div>
-          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:8px 12px;font-size:0.65em;font-weight:700;color:#15803d;">S3<br><span style="color:#15803d;">← T3</span></div>
+        <div style="display:flex;align-items:center;font-size:1.3em;color:#86efac;">→</div>
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#15803d;text-align:center;">S0<br><span style="font-size:0.8em;color:#15803d;">T0</span></div>
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#15803d;text-align:center;">S1<br><span style="font-size:0.8em;color:#15803d;">T1</span></div>
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#15803d;text-align:center;">S2<br><span style="font-size:0.8em;color:#15803d;">T2</span></div>
+          <div style="background:#dcfce7;border:2px solid #86efac;border-radius:6px;padding:10px 20px;font-size:0.7em;font-weight:700;color:#15803d;text-align:center;">S3<br><span style="font-size:0.8em;color:#15803d;">T3</span></div>
         </div>
       </div>
-      <div style="text-align:center;font-size:0.6em;color:#15803d;margin-top:8px;">每线程独占一分片 · 无碰撞无浪费</div>
+      <div style="text-align:center;font-size:0.65em;color:#15803d;margin-top:10px;">一对一 · 无碰撞 · 无浪费</div>
     </div>
   </div>
 
