@@ -304,12 +304,6 @@ nav a:hover { background: #1e40af; color: white; }
     <tr><td><b>batch64 + shard</b></td><td class="green">0.262s</td><td class="green">0.429s</td><td class="green">0.575s</td><td class="green">0.561s</td></tr>
     <tr class="improve"><td>改善</td><td>6%</td><td>8%</td><td>3%</td><td>6%</td></tr>
   </table>
-  <div class="callout">
-    <b>为什么地址分片不够：</b>OH 代码原有 `addr % g_sharedMemCount` 选块，不同线程操作不同地址<br>
-    可能算出同一个余数，撞进同一块共享内存，仍然在 ShareMemoryBlock 的内部锁上竞争。<br>
-    <b>改后：</b>`tid % g_sharedMemCount` 保证同一线程始终写同一分片。分片数 ≥ 线程数时，<br>
-    每个分片只有一个写者，内部锁直接省掉。GetShardIndex() 用 thread_local 缓存，只调一次 gettid。
-  </div>
 </section>
 
 <!-- 6. Auto shard -->
