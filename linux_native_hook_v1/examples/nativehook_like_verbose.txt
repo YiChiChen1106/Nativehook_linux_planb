@@ -1,0 +1,6 @@
+consumer listening on /tmp/nativehook_planb.sock
+VERBOSE,0,101,0x1000,64,7,10,100,11,leak_case_A
+VERBOSE,0,102,0x2000,32,7,11,200,12,leak_case_B
+VERBOSE,1,103,0x1000,0,7,12,300,0,
+VERBOSE,1,104,0x3000,0,7,13,400,0,
+VERBOSE,0,101,0x4000,128,7,14,500,11,leak_case_A

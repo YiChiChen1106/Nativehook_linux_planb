@@ -12,6 +12,7 @@
 #include "common/stack_writer.h"
 #include "common/unix_defs.h"
 #include "producer_hook/hook_socket_client.h"
+#include "producer_hook/stack_capture.h"
 
 namespace linux_native_hook_v1 {
 
@@ -89,6 +90,8 @@ private:
     void FillRecordForSubAblationLocked(
         HookRecord* record, HookEventType type, uint64_t addr, uint64_t size, int sub_ablation_stage);
     void FillStage6OptimizedRecord(HookRecord* record, HookEventType type, uint64_t addr, uint64_t size);
+    void FillRecordStack(HookRecord* record, const CapturedStack& stack);
+    bool MaybeEmitStackMapLocked(const CapturedStack& stack);
     void MaybeWriteThreadNameSubAblationLocked(int sub_ablation_stage);
     void MaybeWriteThreadNameLocked(int ablation_stage);
     void WaitUntilDrainedLocked() const;
@@ -132,6 +135,7 @@ private:
     const char* socket_path_ = nullptr;
     std::atomic<bool> connected_fast_path_ {false};
     std::unordered_set<uint64_t> tracked_allocations_;
+    std::unordered_set<uint32_t> emitted_stack_maps_;
     std::array<TrackingShard, kTrackingShardCount> tracking_shards_;
     std::array<OwnershipShard, kTrackingShardCount> ownership_shards_;
 };

@@ -705,6 +705,47 @@ void HookWriter::FillStage6OptimizedRecord(
     record->ts = NowTs(clock_id_);
 }
 
+void HookWriter::FillRecordStack(HookRecord* record, const CapturedStack& stack)
+{
+    if (record == nullptr || stack.stack_id == 0) {
+        return;
+    }
+
+    record->stack_id = stack.stack_id;
+    record->stack_depth = stack.depth;
+    for (uint16_t i = 0; i < stack.depth && i < kMaxStackFrames; ++i) {
+        record->frames[i] = stack.frames[i];
+    }
+}
+
+bool HookWriter::MaybeEmitStackMapLocked(const CapturedStack& stack)
+{
+    if (stack.stack_id == 0 || stack.depth == 0) {
+        return true;
+    }
+    if (emitted_stack_maps_.find(stack.stack_id) != emitted_stack_maps_.end()) {
+        return true;
+    }
+
+    HookRecord map_record {};
+    map_record.type = static_cast<uint16_t>(HookEventType::kStackMap);
+    map_record.stack_id = stack.stack_id;
+    map_record.stack_depth = stack.depth;
+    const bool use_pid_tid_cache = GetPidTidCacheEnabled();
+    map_record.pid = MetadataPid(use_pid_tid_cache);
+    map_record.tid = MetadataTid(use_pid_tid_cache);
+    map_record.ts = NowTs(clock_id_);
+    for (uint16_t i = 0; i < stack.depth && i < kMaxStackFrames; ++i) {
+        map_record.frames[i] = stack.frames[i];
+    }
+
+    const bool ret = WriteRecordLocked(map_record, false, false);
+    if (ret) {
+        emitted_stack_maps_.insert(stack.stack_id);
+    }
+    return ret;
+}
+
 bool HookWriter::WriteRecordSubAblationLocked(const HookRecord& record, int sub_ablation_stage)
 {
     if (!IncludesRingWritePath(sub_ablation_stage)) {
@@ -809,6 +850,7 @@ bool HookWriter::RecordWriteSubAblationAllocLocked(void* ptr, size_t size, int s
         return true;
     }
 
+    const CapturedStack stack = CaptureStack();
     MaybeWriteThreadNameSubAblationLocked(sub_ablation_stage);
 
     HookRecord record {};
@@ -818,6 +860,8 @@ bool HookWriter::RecordWriteSubAblationAllocLocked(void* ptr, size_t size, int s
         reinterpret_cast<uint64_t>(ptr),
         static_cast<uint64_t>(size),
         sub_ablation_stage);
+    FillRecordStack(&record, stack);
+    MaybeEmitStackMapLocked(stack);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
     if (ret) {
         tracked_allocations_.insert(reinterpret_cast<uint64_t>(ptr));
@@ -858,6 +902,7 @@ bool HookWriter::RecordWriteSubAblationAllocSharded(void* ptr, size_t size, int 
         return true;
     }
 
+    const CapturedStack stack = CaptureStack();
     HookRecord record {};
     HotpathProfileMutexGuard writer_lock(
         &mutex_,
@@ -870,6 +915,8 @@ bool HookWriter::RecordWriteSubAblationAllocSharded(void* ptr, size_t size, int 
         reinterpret_cast<uint64_t>(ptr),
         static_cast<uint64_t>(size),
         sub_ablation_stage);
+    FillRecordStack(&record, stack);
+    MaybeEmitStackMapLocked(stack);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
     writer_lock.Unlock();
     if (ret) {
@@ -1010,6 +1057,7 @@ bool HookWriter::RecordWriteSubAblationAllocThreadLocal(
         return true;
     }
 
+    const CapturedStack stack = CaptureStack();
     HookRecord record {};
     HotpathProfileMutexGuard writer_lock(
         &mutex_,
@@ -1022,6 +1070,8 @@ bool HookWriter::RecordWriteSubAblationAllocThreadLocal(
         reinterpret_cast<uint64_t>(ptr),
         static_cast<uint64_t>(size),
         sub_ablation_stage);
+    FillRecordStack(&record, stack);
+    MaybeEmitStackMapLocked(stack);
     const bool ret = WriteRecordSubAblationLocked(record, sub_ablation_stage);
     writer_lock.Unlock();
     if (ret) {
@@ -1071,8 +1121,10 @@ bool HookWriter::RecordStage6WriterRingImpactAllocThreadLocal(
     }
 
     const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    const CapturedStack stack = CaptureStack();
     HookRecord record {};
     FillStage6OptimizedRecord(&record, HookEventType::kMalloc, addr, static_cast<uint64_t>(size));
+    FillRecordStack(&record, stack);
 
     bool ret = true;
     if (sub_ablation_stage != kStage6WriterRingSubStageNoWriterRing) {
@@ -1080,6 +1132,7 @@ bool HookWriter::RecordStage6WriterRingImpactAllocThreadLocal(
             &mutex_,
             HotpathProfileSegment::kWriterMutexWait,
             HotpathProfileSegment::kWriterMutexHold);
+        MaybeEmitStackMapLocked(stack);
         ret = WriteStage6WriterRingImpactLocked(record, sub_ablation_stage);
     }
 
@@ -1126,8 +1179,10 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
     }
 
     const uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+    const CapturedStack stack = CaptureStack();
     HookRecord record {};
     FillStage6OptimizedRecord(&record, HookEventType::kMalloc, addr, static_cast<uint64_t>(size));
+    FillRecordStack(&record, stack);
     InsertTrackedAllocThreadLocal(use_fallback, addr);
 
     const uint32_t sw_batch_size = GetStackWriterBatchSize();
@@ -1150,6 +1205,13 @@ bool HookWriter::RecordStackWriterSubAblationAllocThreadLocal(
     }
 
     if (sub_ablation_stage >= kStackWriterSubStageWriteOnly) {
+        if (stack.stack_id != 0) {
+            HotpathProfileMutexGuard writer_lock(
+                &mutex_,
+                HotpathProfileSegment::kWriterMutexWait,
+                HotpathProfileSegment::kWriterMutexHold);
+            MaybeEmitStackMapLocked(stack);
+        }
         stack_writer_.Write(&record, 1, false);
         if (sub_ablation_stage <= kStackWriterSubStageWriteOnly) {
             HotpathProfileAdd(HotpathProfileSegment::kShmRecordCopy, write_start);
@@ -1275,6 +1337,7 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
         return false;
     }
 
+    const CapturedStack stack = CaptureStack();
     HookRecord record {};
     const uint64_t fill_start = HotpathProfileStart();
     record.type = static_cast<uint16_t>(HookEventType::kMalloc);
@@ -1285,9 +1348,17 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
+    FillRecordStack(&record, stack);
 
     const uint32_t stage6_batch_size = GetStage6BatchSize();
     if (ShouldUseStage6Batching(ablation_stage, sub_ablation_stage, stage6_batch_size, is_blocked_)) {
+        {
+            HotpathProfileMutexGuard writer_lock(
+                &mutex_,
+                HotpathProfileSegment::kWriterMutexWait,
+                HotpathProfileSegment::kWriterMutexHold);
+            MaybeEmitStackMapLocked(stack);
+        }
         const bool ret = BufferStage6Record(record, stage6_batch_size);
         if (ret) {
             InsertTrackedAllocThreadLocal(use_fallback, record.addr);
@@ -1300,6 +1371,7 @@ bool HookWriter::RecordAllocThreadLocal(bool use_fallback, void* ptr, size_t siz
         HotpathProfileSegment::kWriterMutexWait,
         HotpathProfileSegment::kWriterMutexHold);
     MaybeWriteThreadNameLocked(ablation_stage);
+    MaybeEmitStackMapLocked(stack);
     bool notify_after_unlock = false;
     const bool ret = WriteRecordLocked(
         record,
@@ -1628,6 +1700,7 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
         return false;
     }
 
+    const CapturedStack stack = CaptureStack();
     MaybeWriteThreadNameLocked(ablation_stage);
 
     HookRecord record {};
@@ -1640,6 +1713,8 @@ bool HookWriter::RecordAlloc(void* ptr, size_t size)
     record.pid = MetadataPid(use_pid_tid_cache);
     record.tid = MetadataTid(use_pid_tid_cache);
     record.ts = NowTs(clock_id_);
+    FillRecordStack(&record, stack);
+    MaybeEmitStackMapLocked(stack);
     const bool ret = WriteRecordLocked(
         record,
         ablation_stage >= kAblationStageNotify,

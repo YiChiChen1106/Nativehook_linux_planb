@@ -197,6 +197,7 @@ add_library(hook_preload SHARED
     producer_hook/hook_guard.cpp
     producer_hook/hotpath_profile.cpp
     producer_hook/hook_writer.cpp
+    producer_hook/stack_capture.cpp
 )
 
 target_link_libraries(hook_preload

@@ -11,6 +11,8 @@ results/logs/
 .DS_Store
 Thumbs.db
 .vscode/
+__pycache__/
+*.pyc
 
 # Temporary Office files
 ~$*.pptx

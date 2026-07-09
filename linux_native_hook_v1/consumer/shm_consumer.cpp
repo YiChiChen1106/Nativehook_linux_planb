@@ -11,6 +11,36 @@
 
 namespace linux_native_hook_v1 {
 
+namespace {
+
+void PrintVerboseRecord(const HookRecord& record)
+{
+    if (record.type == static_cast<uint16_t>(HookEventType::kStackMap)) {
+        std::printf("STACKMAP,%u,%u",
+            static_cast<unsigned>(record.stack_id),
+            static_cast<unsigned>(record.stack_depth));
+        const uint16_t depth = record.stack_depth > kMaxStackFrames ? kMaxStackFrames : record.stack_depth;
+        for (uint16_t frame_index = 0; frame_index < depth; ++frame_index) {
+            std::printf(",0x%lx", static_cast<unsigned long>(record.frames[frame_index]));
+        }
+        std::printf("\n");
+        return;
+    }
+
+    std::printf("VERBOSE,%u,%u,%lu,%lu,%lu,%ld,%ld,%u,0x%lx\n",
+        static_cast<unsigned>(record.type),
+        static_cast<unsigned>(record.tid),
+        static_cast<unsigned long>(record.addr),
+        static_cast<unsigned long>(record.size),
+        static_cast<unsigned long>(record.pid),
+        static_cast<long>(record.ts.tv_sec),
+        static_cast<long>(record.ts.tv_nsec),
+        static_cast<unsigned>(record.stack_id),
+        static_cast<unsigned long>(record.frames[0]));
+}
+
+}  // namespace
+
 ShmConsumer::~ShmConsumer()
 {
     if (mapping_ != nullptr) {
@@ -87,14 +117,7 @@ bool ShmConsumer::ConsumeAvailable(Metrics* metrics, bool verbose)
                     ++free_count;
                 }
                 if (verbose) {
-                    std::printf("VERBOSE,%u,%u,%lu,%lu,%lu,%ld,%ld\n",
-                        static_cast<unsigned>(record.type),
-                        static_cast<unsigned>(record.tid),
-                        static_cast<unsigned long>(record.addr),
-                        static_cast<unsigned long>(record.size),
-                        static_cast<unsigned long>(record.pid),
-                        static_cast<long>(record.ts.tv_sec),
-                        static_cast<long>(record.ts.tv_nsec));
+                    PrintVerboseRecord(record);
                 }
                 read_idx = (read_idx + 1) % shard_cap;
                 ++batch_count;
@@ -128,14 +151,7 @@ bool ShmConsumer::ConsumeAvailable(Metrics* metrics, bool verbose)
             ++free_count;
         }
         if (verbose) {
-            std::printf("VERBOSE,%u,%u,%lu,%lu,%lu,%ld,%ld\n",
-                static_cast<unsigned>(record.type),
-                static_cast<unsigned>(record.tid),
-                static_cast<unsigned long>(record.addr),
-                static_cast<unsigned long>(record.size),
-                static_cast<unsigned long>(record.pid),
-                static_cast<long>(record.ts.tv_sec),
-                static_cast<long>(record.ts.tv_nsec));
+            PrintVerboseRecord(record);
         }
         read_index = (read_index + 1) % capacity;
         ++batch_count;

@@ -1,0 +1,79 @@
+{
+  "duplicate_allocations": [],
+  "outstanding_allocations": [
+    {
+      "addr": "0x4000",
+      "age_ns": 0,
+      "callsite": "leak_case_A",
+      "pid": 7,
+      "size": 128,
+      "stack_id": 11,
+      "tid": 101,
+      "ts_nsec": 500,
+      "ts_sec": 14
+    },
+    {
+      "addr": "0x2000",
+      "age_ns": 3000000300,
+      "callsite": "leak_case_B",
+      "pid": 7,
+      "size": 32,
+      "stack_id": 12,
+      "tid": 102,
+      "ts_nsec": 200,
+      "ts_sec": 11
+    }
+  ],
+  "statistics": [
+    {
+      "apply_count": 2,
+      "apply_size": 192,
+      "callsite": "leak_case_A",
+      "group_key": "stack:11",
+      "outstanding_count": 1,
+      "outstanding_size": 128,
+      "pid": 7,
+      "release_count": 1,
+      "release_size": 64,
+      "stack_id": 11,
+      "tid": 101
+    },
+    {
+      "apply_count": 1,
+      "apply_size": 32,
+      "callsite": "leak_case_B",
+      "group_key": "stack:12",
+      "outstanding_count": 1,
+      "outstanding_size": 32,
+      "pid": 7,
+      "release_count": 0,
+      "release_size": 0,
+      "stack_id": 12,
+      "tid": 102
+    }
+  ],
+  "summary": {
+    "alloc_count": 3,
+    "duplicate_alloc_count": 0,
+    "free_count": 2,
+    "ignored_null_free_count": 0,
+    "matched_free_count": 1,
+    "outstanding_bytes": 160,
+    "outstanding_count": 2,
+    "statistics_group_count": 2,
+    "unmatched_free_count": 1
+  },
+  "unmatched_frees": [
+    {
+      "addr": "0x3000",
+      "callsite": "",
+      "line": 5,
+      "pid": 7,
+      "size": 0,
+      "stack_id": 0,
+      "tid": 104,
+      "ts_nsec": 400,
+      "ts_sec": 13
+    }
+  ]
+}
