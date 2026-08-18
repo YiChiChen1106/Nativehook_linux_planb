@@ -1,0 +1,15 @@
+section,tool,item,repeats,tp,fp,fn,precision,recall,expected,detected,exact_matches,unknown_rows,coarse_rows,avg_workload_ms,std_workload_ms,avg_runner_ms,std_runner_ms,slowdown_vs_baseline,notes
+detection,valgrind,six_cases_first_round,3,9,0,0,100.00%,100.00%,,,18/18,0,0,,,,,,object/byte matching; BCC coarse rows remain coarse attribution
+detection,lsan,six_cases_first_round,3,9,0,0,100.00%,100.00%,,,18/18,0,0,,,,,,object/byte matching; BCC coarse rows remain coarse attribution
+detection,heaptrack,six_cases_first_round,3,9,0,0,100.00%,100.00%,,,18/18,0,0,,,,,,object/byte matching; BCC coarse rows remain coarse attribution
+detection,bcc_memleak,six_cases_first_round,3,9,0,0,100.00%,100.00%,,,18/18,0,9,,,,,,object/byte matching; BCC coarse rows remain coarse attribution
+bcc_growth,bcc_memleak,growth_1_thread,3,,,,,,2000 blocks / 128000 bytes,1332 blocks / 85248 bytes,0/3,,3,,,,,,early growth visible; later snapshots plateau at 1332 or 2664
+bcc_growth,bcc_memleak,growth_2_threads,3,,,,,,4000 blocks / 256000 bytes,2664 blocks / 170496 bytes,0/3,,3,,,,,,early growth visible; later snapshots plateau at 1332 or 2664
+bcc_stack,bcc_memleak,DefiniteLeakPath,3,,,,100.00%,100.00%,4000 blocks / 256000 bytes,4000 blocks / 256000 bytes,3/3,0,0,,,,,,build_fp with frame pointers; specific leak function observed in raw stack
+bcc_stack,bcc_memleak,GrowthLeakPath,3,,,,100.00%,100.00%,4000 blocks / 256000 bytes,4000 blocks / 256000 bytes,3/3,0,0,,,,,,build_fp with frame pointers; specific leak function observed in raw stack
+bcc_stack,bcc_memleak,MixedLeakPath,3,,,,100.00%,100.00%,800 blocks / 64400 bytes,800 blocks / 64400 bytes,3/3,0,0,,,,,,build_fp with frame pointers; specific leak function observed in raw stack
+performance,baseline,high_freq_no_leak,5,,,,,,,,,,,0.34,0.06,4.40,0.55,1.00x,"bare benchmark, no tool"
+performance,valgrind,high_freq_no_leak,5,,,,100.00%,100.00%,0 blocks / 0 bytes,0 blocks / 0 bytes,5/5,0,0,78.91,1.87,1498.60,14.60,234.58x,runner time includes tool startup and output handling
+performance,lsan,high_freq_no_leak,5,,,,100.00%,100.00%,0 blocks / 0 bytes,0 blocks / 0 bytes,5/5,0,0,2.12,0.29,50.60,1.95,6.32x,runner time includes tool startup and output handling
+performance,heaptrack,high_freq_no_leak,5,,,,100.00%,100.00%,0 blocks / 0 bytes,0 blocks / 0 bytes,5/5,0,0,77.89,9.79,537.40,28.59,231.55x,runner time includes tool startup and output handling
+performance,bcc_memleak,high_freq_no_leak,5,,,,100.00%,100.00%,0 blocks / 0 bytes,0 blocks / 0 bytes,5/5,0,0,20.84,1.44,9560.00,2.55,61.94x,workload time excludes the 7500 ms BCC observation wait; runner time includes it

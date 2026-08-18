@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阶段性实验汇报｜静态二进制分析与游戏语义 Benchmark</title>
+<style>
+:root{
+  --ink:#192b3a;--muted:#657687;--paper:#f6f8f7;--white:#fff;--line:#d8e1e3;
+  --navy:#19364c;--teal:#0b7d78;--teal-soft:#e1f3f1;--orange:#df6b43;
+  --orange-soft:#fff0e8;--blue:#3268a7;--blue-soft:#e9f0fb;--green:#2f855a;
+  --green-soft:#e8f6ed;--red:#bb4d4d;--red-soft:#fff0f0;--gold:#b68125;
+  --shadow:0 12px 28px rgba(25,54,76,.09)
+}
+*{box-sizing:border-box}
+html{margin:0;background:var(--navy);scroll-snap-type:y mandatory;scroll-behavior:smooth}
+body{margin:0;background:var(--navy);color:var(--ink);font-family:"Microsoft YaHei","Segoe UI",Arial,sans-serif;line-height:1.45}
+.slide{position:relative;min-height:100vh;display:flex;align-items:center;padding:52px 5vw 46px;overflow:hidden;scroll-snap-align:start;background:var(--paper)}
+.slide:nth-of-type(odd):not(.dark){background:#eef4f2}.slide.dark{background:var(--navy);color:#eef5f5}
+.content{width:min(1210px,100%);margin:auto}.topline{position:absolute;top:20px;left:5vw;right:5vw;display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}.dark .topline{color:rgba(238,245,245,.66)}
+.page{position:absolute;right:30px;bottom:18px;color:rgba(101,118,135,.72);font-size:11px;font-weight:900;letter-spacing:.1em}.dark .page{color:rgba(238,245,245,.55)}
+h1,h2,h3,p{margin:0}h1{font-size:clamp(44px,5.7vw,76px);line-height:1.05;letter-spacing:.01em;font-weight:950}h2{font-size:clamp(29px,3.2vw,43px);line-height:1.12;font-weight:950;color:var(--navy)}h3{font-size:17px;line-height:1.18;font-weight:950;color:var(--navy)}.dark h1,.dark h2,.dark h3{color:#fff}
+.lead{max-width:780px;margin-top:20px;color:var(--muted);font-size:18px;line-height:1.65}.dark .lead{color:rgba(238,245,245,.76)}
+.kicker,.tag,.case{display:inline-flex;align-items:center;width:max-content;padding:5px 9px;border-radius:5px;font-size:10px;font-weight:950;letter-spacing:.04em}.kicker{color:#dceced;border:1px solid rgba(220,236,237,.22);background:rgba(255,255,255,.08)}.tag{color:var(--navy);background:#e8eef0}.tag.teal{color:#086a66;background:var(--teal-soft)}.tag.orange{color:#a94c2d;background:var(--orange-soft)}.tag.blue{color:#29598f;background:var(--blue-soft)}.tag.green{color:#236d49;background:var(--green-soft)}.tag.red{color:#9d3c3c;background:var(--red-soft)}.tag.gold{color:#8d6418;background:#fff6df}.dark .tag{color:#e9f4f4;background:rgba(255,255,255,.09);border:1px solid rgba(220,236,237,.18)}
+.hero{display:grid;grid-template-columns:1.08fr .92fr;gap:52px;align-items:center}.hero-copy{padding-top:14px}.hero-orbit{position:relative;min-height:388px;padding:22px;border:1px solid rgba(220,236,237,.16);border-radius:10px;background:rgba(255,255,255,.055)}
+.hero-orbit svg{width:100%;height:310px;display:block}.orbit-note{padding-top:14px;border-top:1px solid rgba(220,236,237,.17);color:rgba(238,245,245,.66);font-size:12px}
+.hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:27px}.hero-stat{padding:13px;border:1px solid rgba(220,236,237,.16);border-radius:7px;background:rgba(255,255,255,.06)}.hero-stat strong{display:block;color:#9ed5d0;font-size:31px;line-height:1}.hero-stat span{display:block;margin-top:7px;color:rgba(238,245,245,.66);font-size:11px;font-weight:800}
+.head{display:grid;gap:9px;margin-bottom:21px}.head p{color:var(--muted);font-size:15px}.dark .head p{color:rgba(238,245,245,.70)}
+.grid2,.grid3,.grid4{display:grid;gap:15px}.grid2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.panel,.chart,.table-wrap{border:1px solid var(--line);border-radius:8px;background:var(--white);box-shadow:var(--shadow)}.panel{padding:17px}.panel h3{margin-top:9px}.panel p{margin-top:8px;color:#526876;font-size:13px;line-height:1.6}.panel.teal{background:var(--teal-soft);border-color:#b9dfdc}.panel.orange{background:var(--orange-soft);border-color:#f0c6b7}.panel.blue{background:var(--blue-soft);border-color:#c7d8ef}.panel.green{background:var(--green-soft);border-color:#c4e4cf}.panel.red{background:var(--red-soft);border-color:#efc7c7}
+.route{display:grid;grid-template-columns:1fr 35px 1fr 35px 1fr;gap:6px;align-items:center;margin-top:23px}.route-node{min-height:145px;padding:16px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.route-node .index{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:950}.route-node:nth-child(3) .index{background:var(--teal)}.route-node:nth-child(5) .index{background:var(--orange)}.route-node h3{margin-top:12px}.route-node p{margin-top:7px;color:#5d7180;font-size:12px}.route-arrow{text-align:center;color:#89a0a8;font-size:27px;font-weight:900}
+.callout{display:flex;gap:10px;align-items:flex-start;margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:7px;background:#f9fbfb;color:#536976;font-size:13px}.callout strong{color:var(--navy)}.callout .dot{width:9px;height:9px;flex:none;margin-top:5px;border-radius:50%;background:var(--teal)}.callout.warn .dot{background:var(--orange)}
+.case-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.case-column{padding:17px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.case-column.game{background:#f5f0e8;border-color:#e5d6bb}.case-column h3{display:flex;justify-content:space-between;gap:12px}.case-column h3 span{font-size:11px;color:var(--muted);font-weight:800}.case-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}.case{justify-content:space-between;min-height:43px;padding:8px 10px;border:1px solid #dfe8e9;background:#f8fbfb;color:#3f5967;font-size:11px}.case i{display:block;width:8px;height:8px;border-radius:50%;background:var(--green)}.case.leak i{background:var(--orange)}.case-column.game .case{background:#fffaf0;border-color:#eadfc8}.truth-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.truth{padding:12px;border:1px solid var(--line);border-radius:7px;background:#fff}.truth strong{display:block;color:var(--navy);font-size:22px}.truth span{display:block;margin-top:4px;color:var(--muted);font-size:10px;font-weight:800}
+.game-map{position:relative;min-height:330px;padding:15px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.game-map svg{width:100%;height:300px;display:block}.game-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:11px;color:var(--muted);font-size:11px}.legend-dot{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:50%;vertical-align:-1px}.legend-dot.teal{background:var(--teal)}.legend-dot.orange{background:var(--orange)}.legend-dot.blue{background:var(--blue)}
+.game-case-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.game-case-card{min-height:157px;padding:14px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.game-case-card h3{display:flex;justify-content:space-between;gap:8px;font-size:15px}.game-case-card h3 span{color:var(--muted);font-size:10px;font-weight:850}.game-case-card p{margin-top:8px;color:#536b77;font-size:11px;line-height:1.55}.game-path{display:block;margin-top:11px;padding:8px;border-radius:5px;background:#f4f8f8;color:#34545e;font:700 10px/1.55 Consolas,"SFMono-Regular",monospace}.game-result{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:11px;color:var(--muted);font-size:10px;font-weight:850}.game-result strong{color:var(--navy);font-size:17px}.game-case-card.leak{border-top:4px solid var(--orange)}.game-case-card.balanced{border-top:4px solid var(--teal)}.game-case-card.async{border-top:4px solid var(--blue)}
+.lifecycle-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.lifecycle-card{min-height:190px;padding:14px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.lifecycle-card h3{display:block;font-size:15px}.lifecycle-card h3 span{display:block;margin-top:4px;color:var(--muted);font:700 10px/1.35 Consolas,"SFMono-Regular",monospace}.lifecycle-card p{margin-top:10px;color:#536b77;font-size:11px;line-height:1.5}.life-flow{display:flex;align-items:center;gap:4px;margin-top:13px;min-height:48px}.life-node{display:grid;place-items:center;min-width:0;min-height:39px;flex:1;padding:5px 4px;border:1px solid #c9dedd;border-radius:6px;background:var(--teal-soft);color:#245e60;text-align:center;font-size:10px;font-weight:900;line-height:1.25}.life-node.alloc{background:#e9f0fb;border-color:#c7d8ef;color:#29598f}.life-node.use{background:#f5f0e8;border-color:#e5d6bb;color:#7c6c55}.life-node.free{background:var(--green-soft);border-color:#c4e4cf;color:#236d49}.life-node.delay{background:#e9f0fb;border-color:#c7d8ef;color:#29598f}.life-node.leak{background:var(--orange-soft);border-color:#f0c6b7;color:#a94c2d}.life-arrow{flex:0 0 15px;color:#92a6aa;font-size:17px;font-weight:950;text-align:center}.life-arrow.warn{color:var(--orange)}.life-note{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:12px;padding-top:9px;border-top:1px solid #e6eded;color:var(--muted);font-size:10px}.life-note strong{color:var(--navy);font-size:11px}.life-trend{display:flex;align-items:flex-end;gap:4px;height:23px;margin-left:auto}.life-trend i{display:block;width:7px;border-radius:2px 2px 0 0;background:var(--orange)}.life-trend i:nth-child(1){height:7px}.life-trend i:nth-child(2){height:13px}.life-trend i:nth-child(3){height:19px}.life-lanes{display:grid;gap:5px;margin-top:11px}.life-lane{display:flex;align-items:center;gap:4px;color:#536b77;font-size:9px}.life-lane span{flex:1;padding:5px 4px;border:1px solid #d8e4e4;border-radius:5px;background:#f7faf9;text-align:center;font-weight:850}.life-lane span:last-child{background:var(--orange-soft);border-color:#f0c6b7;color:#a94c2d}.life-lane b{color:#93a7aa;font-size:12px}.life-legend{display:flex;gap:15px;flex-wrap:wrap;margin-top:13px;color:var(--muted);font-size:11px}.life-legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:3px;vertical-align:-1px}.life-legend .ok{background:var(--green)}.life-legend .residual{background:var(--orange)}.life-legend .queue{background:var(--blue)}
+.path-table{width:100%;border-collapse:collapse;font-size:12px}.path-table th,.path-table td{padding:10px 9px;border-bottom:1px solid #e2e9e9;text-align:left;vertical-align:top}.path-table th{color:var(--navy);font-size:11px;white-space:nowrap}.path-table td{color:#556d79}.path-table tr:last-child th,.path-table tr:last-child td{border-bottom:0}.path-table .yes{color:var(--green);font-weight:950}.path-table .partial{color:var(--orange);font-weight:950}.binary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.binary{min-height:136px;padding:15px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.binary strong{display:block;color:var(--navy);font-size:28px;line-height:1}.binary span{display:block;margin-top:8px;color:var(--muted);font-size:11px;font-weight:850}.binary em{display:block;margin-top:12px;color:#536976;font-size:11px;font-style:normal}.binary.symbol{border-top:4px solid var(--teal)}.binary.nodebug{border-top:4px solid var(--blue)}.binary.strip{border-top:4px solid var(--orange)}.static-flow{display:grid;grid-template-columns:1fr 34px 1.25fr 34px 1fr;gap:6px;align-items:center;margin-top:16px}.static-flow .box{padding:14px;border-radius:8px;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow)}.static-flow code{display:block;color:var(--navy);font:700 12px/1.75 Consolas,"SFMono-Regular",monospace}.static-flow small{display:block;margin-top:8px;color:var(--muted);font-size:11px}.static-flow .arr{text-align:center;color:#8da3a8;font-size:25px;font-weight:900}
+.bars{display:grid;gap:15px;margin-top:12px}.bar-row{display:grid;grid-template-columns:125px 1fr 125px;gap:10px;align-items:center}.bar-row label{color:var(--navy);font-size:12px;font-weight:900}.bar-track{height:25px;border-radius:4px;background:#e7eeee;overflow:hidden}.bar-fill{height:100%;border-radius:4px 0 0 4px}.bar-fill.teal{background:var(--teal)}.bar-fill.green{background:var(--green)}.bar-fill.orange{background:var(--orange)}.bar-row output{text-align:right;color:var(--navy);font-size:11px;font-weight:950}.chart-note{margin-top:13px;color:var(--muted);font-size:11px}.big-metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.big-metric{min-height:108px;padding:15px;border:1px solid var(--line);border-radius:7px;background:#fff}.big-metric strong{display:block;color:var(--navy);font-size:34px;line-height:1}.big-metric span{display:block;margin-top:7px;color:var(--muted);font-size:11px;font-weight:850}.stack-callout{margin-top:15px;padding:14px;border:1px solid #b9dfdc;border-radius:8px;background:var(--teal-soft)}.stack-callout code{display:block;color:#0b625f;font:700 12px/1.8 Consolas,"SFMono-Regular",monospace}.stack-callout p{margin-top:7px;color:#4f6b70;font-size:12px}
+.bpf-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:16px}.baseline-card{padding:17px;border:1px solid #f0c6b7;border-radius:8px;background:var(--orange-soft)}.baseline-card h3{color:#9d472c}.equation{display:flex;align-items:center;gap:9px;margin-top:17px;color:var(--navy);font-size:18px;font-weight:950}.eq-box{padding:11px 12px;border-radius:6px;background:#fff;border:1px solid #efc9bb}.eq-box.good{background:var(--green-soft);border-color:#c4e4cf;color:#236d49}.eq-sign{color:#a87369}.raw-chart{padding:17px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.raw-chart .bar-row{grid-template-columns:85px 1fr 112px}.raw-chart .bar-track{height:23px}.raw-chart .bar-fill.raw{background:var(--orange)}.raw-chart .bar-fill.cal{background:var(--teal)}.chart-legend{display:flex;gap:15px;margin-top:12px;color:var(--muted);font-size:11px}.chart-legend i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px;vertical-align:-1px}.chart-legend .raw{background:var(--orange)}.chart-legend .cal{background:var(--teal)}.metric-line{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px}.metric-line .metric-box{padding:12px;border:1px solid var(--line);border-radius:7px;background:#fff}.metric-box strong{display:block;color:var(--navy);font-size:25px}.metric-box span{display:block;margin-top:5px;color:var(--muted);font-size:10px;font-weight:850}.metric-box.warn{background:var(--orange-soft);border-color:#f0c6b7}.metric-box.good{background:var(--green-soft);border-color:#c4e4cf}
+.matrix{width:100%;border-collapse:collapse;font-size:12px}.matrix th,.matrix td{padding:10px 10px;border-bottom:1px solid rgba(220,236,237,.16);text-align:left;vertical-align:top}.matrix th{color:#a8d9d5;font-size:11px;white-space:nowrap}.matrix td{color:rgba(238,245,245,.72)}.matrix tr:last-child th,.matrix tr:last-child td{border-bottom:0}.matrix .mark{display:inline-flex;padding:3px 6px;border-radius:4px;font-size:10px;font-weight:950}.matrix .mark.green{color:#b7e8c6;background:rgba(47,133,90,.22)}.matrix .mark.orange{color:#ffd1bd;background:rgba(223,107,67,.24)}.matrix .mark.teal{color:#b5e9e5;background:rgba(11,125,120,.25)}.runtime-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.runtime-card{padding:15px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:var(--shadow)}.runtime-card h3{margin-top:9px}.runtime-card>p{margin-top:7px;color:#536b77;font-size:11px;line-height:1.5}.runtime-card .bars{gap:9px;margin-top:13px}.runtime-card .bar-row{grid-template-columns:91px 1fr 89px;gap:7px}.runtime-card .bar-track{height:18px}.runtime-card .bar-row label,.runtime-card .bar-row output{font-size:10px}.runtime-card .big-metric-grid{gap:7px;margin-top:12px}.runtime-card .big-metric{min-height:69px;padding:10px}.runtime-card .big-metric strong{font-size:24px}.runtime-card .big-metric span{margin-top:4px;font-size:9px}.runtime-card .stack-callout{margin-top:10px;padding:10px}.runtime-card .stack-callout code{font-size:10px}.runtime-card .stack-callout p{margin-top:4px;font-size:10px}.runtime-card .bpf-grid{display:block}.runtime-card .raw-chart{padding:0;border:0;box-shadow:none}.runtime-card .raw-chart .bars{gap:8px;margin-top:12px}.runtime-card .raw-chart .bar-row{grid-template-columns:61px 1fr 94px}.runtime-card .baseline-card{margin-top:12px;padding:11px}.runtime-card .baseline-card h3{margin-top:6px;font-size:15px}.runtime-card .baseline-card p{margin-top:5px;font-size:10px;line-height:1.4}.runtime-card .equation{gap:5px;margin-top:9px;font-size:11px}.runtime-card .eq-box{padding:7px 6px}.runtime-card .metric-line{gap:7px;margin-top:12px}.runtime-card .metric-line .metric-box{padding:9px}.runtime-card .metric-box strong{font-size:20px}.runtime-card .metric-box span{font-size:9px}.next-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-top:17px}.next{min-height:104px;padding:13px;border:1px solid rgba(220,236,237,.16);border-radius:7px;background:rgba(255,255,255,.06)}.next strong{display:block;color:#a8d9d5;font-size:12px}.next p{margin-top:7px;color:rgba(238,245,245,.70);font-size:11px}.source{margin-top:14px;color:rgba(238,245,245,.49);font-size:10px}
+nav{position:fixed;right:22px;bottom:16px;z-index:20;display:flex;gap:5px}nav a{display:grid;place-items:center;width:29px;height:29px;border:1px solid rgba(207,220,221,.65);border-radius:5px;background:rgba(255,255,255,.91);color:#3d5f6b;text-decoration:none;font-size:10px;font-weight:950}nav a:hover,nav a.active{background:#d5efed;color:#086a66}
+@media(max-width:900px){.slide{align-items:flex-start;padding:69px 22px 52px}.hero,.grid2,.grid3,.grid4,.case-columns,.bpf-grid,.runtime-grid,.game-case-grid{grid-template-columns:1fr}.lifecycle-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-orbit{min-height:310px}.hero-orbit svg{height:235px}.route,.static-flow{grid-template-columns:1fr}.route-arrow,.static-flow .arr{transform:rotate(90deg);min-height:24px}.truth-strip,.binary-grid,.next-grid{grid-template-columns:repeat(2,1fr)}.topline{left:22px;right:22px}.topline span:last-child{display:none}nav{display:none}.bar-row,.raw-chart .bar-row{grid-template-columns:90px 1fr 102px}.runtime-card .bar-row,.runtime-card .raw-chart .bar-row{grid-template-columns:90px 1fr 102px}.path-table{font-size:10px}.path-table th,.path-table td{padding:8px 6px}.equation{flex-wrap:wrap}.page{right:20px}}
+@media(max-width:560px){#p5{overflow:visible;min-height:auto}.lifecycle-grid{grid-template-columns:1fr}.life-flow{gap:3px}.life-node{font-size:9px}.life-arrow{flex-basis:12px;font-size:14px}}
+</style>
+</head>
+<body>
+<nav aria-label="页面导航"><a href="#p1" title="第1页">1</a><a href="#p2" title="第2页">2</a><a href="#p3" title="第3页">3</a><a href="#p4" title="第4页">4</a><a href="#p5" title="第5页">5</a><a href="#p6" title="第6页">6</a><a href="#p7" title="第7页">7</a><a href="#p8" title="第8页">8</a></nav>
+
+<section class="slide dark" id="p1">
+  <div class="topline"><span class="kicker">阶段性实验汇报</span><span>静态路径 · 动态证据 · 游戏语义 Benchmark</span></div>
+  <div class="content hero">
+    <div class="hero-copy">
+      <span class="tag">2026.08.11 / Linux test server</span>
+      <h1 style="margin-top:17px">从二进制路径<br><span style="color:#9ed5d0">走到运行时证据</span></h1>
+      <p class="lead">本轮重点是六个游戏语义代理场景：主 Benchmark 的四个方案将在这些场景上实测，二进制分析方法作为补充实验保留。</p>
+      <div class="hero-stats"><div class="hero-stat"><strong>6</strong><span>新增游戏语义 case</span></div><div class="hero-stat"><strong>4</strong><span>主 Benchmark 方案</span></div><div class="hero-stat"><strong>1</strong><span>统一场景入口</span></div></div>
+    </div>
+    <div class="hero-orbit">
+      <svg viewBox="0 0 520 330" role="img" aria-label="从二进制到运行时证据的三层流程图">
+        <defs><marker id="arrow1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#9ed5d0"/></marker></defs>
+        <circle cx="260" cy="155" r="116" fill="none" stroke="rgba(158,213,208,.16)" stroke-width="1"/>
+        <circle cx="260" cy="155" r="78" fill="rgba(255,255,255,.05)" stroke="rgba(158,213,208,.25)" stroke-width="1"/>
+        <path d="M123 150 C170 96 198 72 240 62" fill="none" stroke="#9ed5d0" stroke-width="2" marker-end="url(#arrow1)"/>
+        <path d="M306 62 C355 73 383 99 397 141" fill="none" stroke="#dfaa78" stroke-width="2" marker-end="url(#arrow1)"/>
+        <path d="M396 180 C374 235 328 254 282 260" fill="none" stroke="#9ed5d0" stroke-width="2" marker-end="url(#arrow1)"/>
+        <g font-family="Microsoft YaHei, Arial" text-anchor="middle"><text x="100" y="143" fill="#eef5f5" font-size="15" font-weight="800">主对比方案</text><text x="100" y="164" fill="#9fb8b9" font-size="11">Valgrind / LSan / BCC / heaptrack</text><text x="260" y="48" fill="#eef5f5" font-size="15" font-weight="800">游戏语义</text><text x="260" y="69" fill="#9fb8b9" font-size="11">场景 / 帧 / 异步 / UI</text><text x="423" y="164" fill="#eef5f5" font-size="15" font-weight="800">统一 Benchmark</text><text x="423" y="185" fill="#9fb8b9" font-size="11">同一入口 / 同一字段</text><text x="260" y="166" fill="#9ed5d0" font-size="19" font-weight="950">可复用场景</text><text x="260" y="188" fill="#9fb8b9" font-size="11">从随机分配走向业务语义</text></g>
+      </svg>
+      <div class="orbit-note">主线：静态分析回答“哪里可能泄漏”，动态工具回答“实际留下了什么”，Benchmark 负责把两类证据放进同一把尺子。</div>
+    </div>
+  </div>
+  <div class="page">01 / 10</div>
+</section>
+
+<section class="slide" id="p2">
+  <div class="topline"><span>01 / Benchmark 扩展</span><span>把随机分配改成业务语义</span></div>
+  <div class="content">
+    <div class="head"><h2>这轮新增的是一套游戏语义代理 Benchmark</h2><p>方法对比继续保留，Benchmark 这一部分先只说明新增了哪些可复用场景。</p></div>
+    <div class="route">
+      <div class="route-node"><div class="index">A</div><h3>已有基础场景</h3><p>保留原来的基础内存行为，作为统一入口和后续方法对比的基线。</p><div class="tag blue" style="margin-top:12px">基础基线</div></div>
+      <div class="route-arrow">→</div>
+      <div class="route-node"><div class="index">B</div><h3>新增游戏语义</h3><p>把场景资源、帧临时对象、异步缓冲和 UI 路径写成独立 case。</p><div class="tag teal" style="margin-top:12px">新增场景</div></div>
+      <div class="route-arrow">→</div>
+      <div class="route-node"><div class="index">C</div><h3>统一执行接口</h3><p>每个 case 都用相同参数、真值字段和输出格式，供主 Benchmark 和补充实验共同使用。</p><div class="tag orange" style="margin-top:12px">可复用入口</div></div>
+    </div>
+    <div class="grid3" style="margin-top:17px">
+      <div class="panel blue"><span class="tag blue">已有基础</span><h3>基础内存行为</h3><p>覆盖正常释放、明确泄漏、持续增长、延迟释放、高频路径和混合路径。</p></div>
+      <div class="panel teal"><span class="tag teal">本轮新增</span><h3>游戏对象生命周期</h3><p>把资源、帧对象、异步缓冲和 UI 这些业务语义落到独立函数路径。</p></div>
+      <div class="panel orange"><span class="tag orange">后续用途</span><h3>连接两条实验线</h3><p>六个 case 会同时供 Valgrind、LSan/ASan、BCC memleak、heaptrack 进行主对比，也供二进制分析补充实验使用。</p></div>
+    </div>
+    <div class="callout"><span class="dot"></span><span><strong>本轮的核心变化：</strong>不再只看“工具报没报错”，而是把路径、真值和运行时输出逐项对应起来。</span></div>
+  </div>
+  <div class="page">02 / 10</div>
+</section>
+
+<section class="slide" id="p3">
+  <div class="topline"><span>02 / 新增游戏语义 Benchmark</span><span>六个 case，四类生命周期</span></div>
+  <div class="content">
+    <div class="head"><h2>这次重点新增六个游戏语义 case</h2><p>每个 case 都有明确的函数入口、对象生命周期和真值描述，方便后续接入不同方法。</p></div>
+    <div class="case-columns">
+      <div class="case-column game" style="grid-column:1 / -1"><h3>新增游戏语义代理 <span>6 cases / 资源、帧、异步、UI</span></h3><div class="case-grid"><div class="case">game_scene_no_leak <i></i></div><div class="case leak">game_scene_leak <i></i></div><div class="case leak">game_scene_growth <i></i></div><div class="case">game_async_delayed_free <i></i></div><div class="case">game_frame_no_leak <i></i></div><div class="case leak">game_mixed <i></i></div></div><p style="margin-top:13px;color:#7c6c55;font-size:11px">这六个 case 是本轮 Benchmark 的新增内容，分别模拟场景资源、帧临时对象、异步缓冲和 UI 混合路径。</p></div>
+    </div>
+    <div class="truth-strip"><div class="truth"><strong>6</strong><span>新增游戏 case</span></div><div class="truth"><strong>4 类</strong><span>资源、帧、异步、UI</span></div><div class="truth"><strong>3 种</strong><span>正常、泄漏、混合生命周期</span></div><div class="truth"><strong>1 套</strong><span>统一真值接口</span></div></div>
+    <div class="callout warn"><span class="dot"></span><span><strong>当前范围：</strong>本轮 Benchmark 只展开这六个游戏语义 case，先把场景路径、生命周期和真值描述固定下来。</span></div>
+  </div>
+  <div class="page">03 / 10</div>
+</section>
+
+<section class="slide" id="p4">
+  <div class="topline"><span>03 / 游戏语义代理路径</span><span>用可解释的函数路径模拟真实游戏行为</span></div>
+  <div class="content">
+    <div class="head"><h2>游戏场景不只是一组“随机 malloc”</h2><p>每个代理路径都对应一种常见生命周期，便于观察静态调用关系和动态释放行为。</p></div>
+    <div class="grid2">
+      <div class="game-map">
+        <svg viewBox="0 0 620 310" role="img" aria-label="游戏语义代理路径图">
+          <defs><marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#79969a"/></marker></defs>
+          <path d="M115 73 C180 73 183 73 248 73" fill="none" stroke="#0b7d78" stroke-width="2" marker-end="url(#arrow2)"/><path d="M372 73 C431 73 450 73 500 73" fill="none" stroke="#0b7d78" stroke-width="2" marker-end="url(#arrow2)"/>
+          <path d="M310 110 L310 183" fill="none" stroke="#3268a7" stroke-width="2" marker-end="url(#arrow2)"/><path d="M248 223 C188 223 166 223 115 223" fill="none" stroke="#df6b43" stroke-width="2" marker-end="url(#arrow2)"/>
+          <rect x="18" y="42" width="98" height="61" rx="7" fill="#e1f3f1" stroke="#b9dfdc"/><rect x="248" y="42" width="124" height="61" rx="7" fill="#e9f0fb" stroke="#c7d8ef"/><rect x="500" y="42" width="102" height="61" rx="7" fill="#e8f6ed" stroke="#c4e4cf"/>
+          <rect x="248" y="185" width="124" height="61" rx="7" fill="#fff0e8" stroke="#f0c6b7"/><rect x="18" y="193" width="98" height="61" rx="7" fill="#f5f0e8" stroke="#e5d6bb"/>
+          <g font-family="Microsoft YaHei, Arial" text-anchor="middle"><text x="67" y="67" fill="#0b625f" font-size="13" font-weight="900">场景加载</text><text x="67" y="86" fill="#527276" font-size="10">GameAssetLoadPath</text><text x="310" y="67" fill="#29598f" font-size="13" font-weight="900">分配路径</text><text x="310" y="86" fill="#61778b" font-size="10">AllocateFromPath</text><text x="551" y="67" fill="#236d49" font-size="13" font-weight="900">正常卸载</text><text x="551" y="86" fill="#5d7c6a" font-size="10">GameSceneBalancedPath</text><text x="310" y="210" fill="#a94c2d" font-size="13" font-weight="900">泄漏 / 增长</text><text x="310" y="229" fill="#85695f" font-size="10">GameSceneLeakPath</text><text x="67" y="218" fill="#7c6c55" font-size="13" font-weight="900">异步回收</text><text x="67" y="237" fill="#887765" font-size="10">reclaimer / worker</text></g>
+        </svg>
+        <div class="game-legend"><span><i class="legend-dot teal"></i>资源加载</span><span><i class="legend-dot blue"></i>分配</span><span><i class="legend-dot orange"></i>泄漏候选</span></div>
+      </div>
+      <div class="panel">
+        <span class="tag teal">已覆盖的语义</span>
+        <table class="path-table" style="margin-top:8px"><tbody><tr><th>场景资源</th><td><span class="yes">正常加载/卸载</span><br>明确泄漏 / 持续增长</td></tr><tr><th>帧临时对象</th><td><span class="yes">每帧分配并释放</span></td></tr><tr><th>异步缓冲</th><td><span class="partial">跨 worker 延迟释放</span></td></tr><tr><th>UI 混合</th><td><span class="partial">泄漏路径与平衡路径共存</span></td></tr></tbody></table>
+        <div class="panel orange" style="margin-top:13px;padding:12px"><span class="tag orange">为什么要加这一层</span><p>单纯的随机 malloc 只能验证基础配对。游戏语义代理把资源加载、场景切换、帧循环和异步回收写成有名字的路径，后续更容易和真实业务对应。</p></div>
+      </div>
+    </div>
+    <div class="callout"><span class="dot"></span><span><strong>当前定位：</strong>这是可重复的“游戏语义代理”，用于先验证方法和输出口径，尚未替代真实游戏进程的业务负载。</span></div>
+  </div>
+  <div class="page">04 / 10</div>
+</section>
+
+<section class="slide" id="p5">
+  <div class="topline"><span>04 / 游戏语义 case 展开</span><span>六类生命周期如何落到可测量真值</span></div>
+  <div class="content">
+    <div class="head"><h2>六个游戏 case，各自对应一条可解释的生命周期</h2><p>同样是内存分配，场景资源、帧对象、异步缓冲和 UI 路径的释放时机不同，检测工具需要面对的证据也不同。</p></div>
+    <div class="lifecycle-grid">
+      <div class="lifecycle-card"><h3>场景正常卸载<span>game_scene_no_leak</span></h3><div class="life-flow"><div class="life-node alloc">加载资源</div><div class="life-arrow">→</div><div class="life-node use">场景使用</div><div class="life-arrow">→</div><div class="life-node free">完整卸载</div></div><p>资源从加载到卸载完整闭环，作为正常生命周期对照。</p><div class="life-note"><span>结果标签</span><strong>正常释放</strong></div></div>
+      <div class="lifecycle-card"><h3>场景资源泄漏<span>game_scene_leak</span></h3><div class="life-flow"><div class="life-node alloc">加载资源</div><div class="life-arrow">→</div><div class="life-node use">场景使用</div><div class="life-arrow warn">→</div><div class="life-node leak">对象残留</div></div><p>切换场景后跳过卸载，观察明确留下的资源对象。</p><div class="life-note"><span>结果标签</span><strong style="color:#a94c2d">明确泄漏</strong></div></div>
+      <div class="lifecycle-card"><h3>场景持续增长<span>game_scene_growth</span></h3><div class="life-flow"><div class="life-node alloc">加载资源</div><div class="life-arrow">→</div><div class="life-node use">切换场景</div><div class="life-arrow warn">↻</div><div class="life-node leak">重复累积</div></div><p>反复执行加载和切换，观察残留对象逐轮增加。</p><div class="life-note"><span>增长趋势</span><div class="life-trend"><i></i><i></i><i></i></div></div></div>
+      <div class="lifecycle-card"><h3>异步缓冲回收<span>game_async_delayed_free</span></h3><div class="life-lanes"><div class="life-lane"><b>生产</b><span>创建缓冲</span><b>→</b><span>放入队列</span></div><div class="life-lane"><b>回收</b><span>等待处理</span><b>→</b><span style="background:var(--green-soft);border-color:#c4e4cf;color:#236d49">最终释放</span></div></div><p>分配和释放由不同 worker 完成，中间经过队列和等待。</p><div class="life-note"><span>结果标签</span><strong style="color:#29598f">延迟释放</strong></div></div>
+      <div class="lifecycle-card"><h3>帧临时对象<span>game_frame_no_leak</span></h3><div class="life-flow"><div class="life-node alloc">帧内创建</div><div class="life-arrow">→</div><div class="life-node use">本帧使用</div><div class="life-arrow">→</div><div class="life-node free">帧末清理</div></div><p>每帧重复创建和清理，突出高频、短生命周期对象。</p><div class="life-note"><span>结果标签</span><strong>高频配对</strong></div></div>
+      <div class="lifecycle-card"><h3>UI + 异步混合<span>game_mixed</span></h3><div class="life-lanes"><div class="life-lane"><b>UI</b><span>创建对象</span><b>→</b><span style="background:var(--green-soft);border-color:#c4e4cf;color:#236d49">释放</span></div><div class="life-lane"><b>缓存</b><span>异步创建</span><b>→</b><span>对象残留</span></div></div><p>正常路径、异步路径和残留对象同时出现，模拟复杂业务负载。</p><div class="life-note"><span>结果标签</span><strong style="color:#a94c2d">混合场景</strong></div></div>
+    </div>
+    <div class="life-legend"><span><i class="ok"></i>正常释放</span><span><i class="residual"></i>残留或增长</span><span><i class="queue"></i>异步等待</span><span>箭头表示对象生命周期推进</span></div>
+    <div class="callout"><span class="dot"></span><span><strong>这页只说明场景设计：</strong>图中展示的是六个 case 的预设生命周期，后续各类工具都可以从这些有名字的路径进入，测试结果另行整理。</span></div>
+  </div>
+  <div class="page">05 / 10</div>
+</section>
+
+<section class="slide" id="p6">
+  <div class="topline"><span>05 / 静态二进制分析</span><span>Ghidra + BinAbsInspector + binutils</span></div>
+  <div class="content">
+    <div class="head"><h2>静态实验已经跑通：既能看路径，也能报风险</h2><p>Ghidra 负责还原函数和调用关系，BinAbsInspector 负责在二进制路径上执行规则化风险扫描。</p></div>
+    <div class="callout" style="margin-top:-6px"><span class="dot"></span><span><strong>为什么做这组实验：</strong>为报告第 4 章“通过二进制分析内存泄漏故障的方案调研”补充一手实验材料，验证不同符号信息下的函数恢复、路径定位和风险扫描能力。</span></div>
+    <div class="binary-grid"><div class="binary symbol"><strong>159</strong><span>Ghidra 识别函数</span><em>三个 ELF 样本都完成默认分析，带符号版本可继续映射源码行</em></div><div class="binary nodebug"><strong>20 → 4</strong><span>关键名称随符号信息减少</span><em>带符号和 nodebug 保留函数名，完全 strip 后主要剩地址</em></div><div class="binary strip"><strong>25 / 25 / 44</strong><span>BinAbsInspector 风险条目</span><em>with_debug / nodebug / stripped，三种样本均分析成功</em></div></div>
+    <div class="static-flow"><div class="box"><code>GameSceneLeakPath</code><small>业务语义路径</small></div><div class="arr">→</div><div class="box"><code>AllocateFromPath → malloc</code><small>分配调用链</small></div><div class="arr">→</div><div class="box"><code>没有可见 free</code><small>潜在泄漏候选</small></div></div>
+    <div class="grid2" style="margin-top:15px"><div class="panel blue"><span class="tag blue">Ghidra</span><h3>把路径还原出来</h3><p>可以区分平衡释放、明确泄漏和部分异步释放路径；带调试信息时能映射到函数和源码位置，strip 后主要保留地址级关系。</p></div><div class="panel orange"><span class="tag orange">BinAbsInspector</span><h3>把风险规则跑起来</h3><p>本轮三种样本均成功，输出 25、25、44 条 CWE 风险记录。但当前版本没有 CWE-401 专项检查器，不能直接统计泄漏 blocks/bytes。</p></div></div>
+    <div class="callout"><span class="dot"></span><span><strong>这组结果怎么读：</strong>25/25/44 是静态风险报告条目数，不是泄漏对象数量；它证明工具已经接入，静态结果仍需和动态 Benchmark 分开评价。</span></div>
+  </div>
+  <div class="page">06 / 10</div>
+</section>
+
+<section class="slide" id="p7">
+  <div class="topline"><span>06 / 动态运行时方案</span><span>Dr. Memory + bpftrace</span></div>
+  <div class="content">
+    <div class="head"><h2>两种动态方案：一个看最终集合，一个看运行中变化</h2><p>这组实验用于报告第 4 章的动态二进制插桩和 eBPF / uprobes 运行时追踪方案调研，比较它们如何获取运行时泄漏证据。</p></div>
+    <div class="runtime-grid">
+      <div class="runtime-card"><span class="tag green">Dr. Memory / 动态插桩</span><h3>适合确认最终泄漏集合</h3><p>运行时记录分配、释放和调用栈，程序结束后汇总仍未释放的对象。已有基础 6 个 case 的结果已完成；新增游戏 case 后续接入。</p><div class="big-metric-grid"><div class="big-metric"><strong>100%</strong><span>precision / 基础 case</span></div><div class="big-metric"><strong>100%</strong><span>recall / 基础 case</span></div></div><div class="stack-callout"><code>AllocateFromPath → DefiniteLeakPath</code><p>可以定位到 Benchmark 函数和源码行。</p></div></div>
+      <div class="runtime-card"><span class="tag orange">bpftrace / eBPF 用户探针</span><h3>适合观察运行中变化</h3><p>通过 libc 的 malloc/free 探针观察 outstanding 内存。原始快照会带入进程自身分配，需要结合基线和快照时点解释。</p><div class="raw-chart"><div class="bars"><div class="bar-row"><label>no_leak</label><div class="bar-track"><div class="bar-fill raw" style="width:100%"></div></div><output>raw 77,824 B</output></div><div class="bar-row"><label>definite</label><div class="bar-track"><div class="bar-fill raw" style="width:100%"></div></div><output>raw 78,848 B</output></div><div class="bar-row"><label>校准后</label><div class="bar-track"><div class="bar-fill cal" style="width:3%"></div></div><output>0 / 1,024 B</output></div></div></div><div class="baseline-card"><strong>基线：2 blocks / 77,824 bytes</strong><p>先扣除 no_leak 中稳定存在的进程自身分配，再观察 Benchmark 对象。</p></div></div>
+    </div>
+    <div class="callout"><span class="dot"></span><span><strong>当前边界：</strong>Dr. Memory 偏线下精确确认，bpftrace 偏在线趋势观察；本页新增游戏 case 只说明接入方向，不展示测试结果。</span></div>
+  </div>
+  <div class="page">07 / 09</div>
+</section>
+
+<section class="slide dark" id="p8">
+  <div class="topline"><span>07 / 综合结论与后续安排</span><span>主对比方案与补充实验分开推进</span></div>
+  <div class="content">
+    <div class="head"><h2>两条实验线共用六个游戏 case</h2><p>主 Benchmark 负责比较四个行业方案，二进制分析方法负责补充路径恢复、风险定位和运行时证据。</p></div>
+    <div class="table-wrap" style="background:rgba(255,255,255,.055);border-color:rgba(220,236,237,.16);box-shadow:none;overflow:hidden"><table class="matrix"><thead><tr><th>实验线</th><th>方法</th><th>主要作用</th><th>和六个游戏 case 的关系</th></tr></thead><tbody><tr><th>主 Benchmark 对比</th><td>Valgrind、LSan/ASan、BCC memleak、heaptrack</td><td><span class="mark teal">统一检测效果对比</span></td><td>将在六个 case 上统一实测</td></tr><tr><th>二进制分析补充</th><td>Ghidra、BinAbsInspector、Dr. Memory、bpftrace</td><td><span class="mark green">路径和运行时证据</span></td><td>使用同一组 case 做路径和输出补充</td></tr></tbody></table></div>
+    <div class="next-grid"><div class="next"><strong>01 / 接入主对比方案</strong><p>让 Valgrind、LSan/ASan、BCC memleak 和 heaptrack 在六个 case 上统一运行。</p></div><div class="next"><strong>02 / 固定统一字段</strong><p>记录场景名、生命周期、线程关系、调用栈、blocks 和 bytes。</p></div><div class="next"><strong>03 / 整理补充证据</strong><p>继续分析 Ghidra、BinAbsInspector、Dr. Memory 和 bpftrace 的路径与输出差异。</p></div></div>
+    <div class="source">本轮产物：六个新增游戏语义 case、Ghidra 与 BinAbsInspector 静态结果、Dr. Memory/bpftrace 原始日志、CSV 与 Markdown 汇总。结果目录：Linux test server / results/static_binary_20260811/</div>
+  </div>
+  <div class="page">08 / 08</div>
+</section>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const links=[...document.querySelectorAll('nav a')];
+const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting)links.forEach(link=>link.classList.toggle('active',link.getAttribute('href')==='#'+entry.target.id));}),{threshold:.56});
+slides.forEach(slide=>observer.observe(slide));
+document.addEventListener('keydown',event=>{const current=Math.max(0,slides.findIndex(slide=>{const r=slide.getBoundingClientRect();return r.top>=-30&&r.top<window.innerHeight*.55}));if(['ArrowDown','PageDown',' '].includes(event.key)){event.preventDefault();slides[Math.min(slides.length-1,current+1)].scrollIntoView();}if(['ArrowUp','PageUp'].includes(event.key)){event.preventDefault();slides[Math.max(0,current-1)].scrollIntoView();}});
+</script>
+</body>
+</html>

@@ -17,3 +17,8 @@ Thumbs.db
 ~$*.docx
 ~$*.xlsx
 memory/
+
+# Local staging extracted during portfolio preparation
+archives/
+__pycache__/
+*.pyc
